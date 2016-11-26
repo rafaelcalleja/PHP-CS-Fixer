@@ -30,17 +30,29 @@ class NullStrictFixerTest extends AbstractFixerTestBase
     {
         return array(
             array(
+                '<?php return null !== $a',
+                '<?php return false === is_null($a)',
+            ),
+/*
+            array(
+                '<?php return null === $a',
+                '<?php return true === is_null($a)',
+            ),
+            array(
+                '<?php return null !== $a',
+                '<?php return true !== is_null($a)',
+            ),
+
+            array(
                 '<?php return null === $a',
                 '<?php return is_null($a)',
             ),
             array(
                 '<?php return null !== b($a)',
                 '<?php return !is_null(b($a))',
-            ),
-            /*array(
-                '<?php return null !== $a',
-                '<?php return false === is_null($a)',
-            ),*&/
+            ),*/
+
+
             /* array(
                 '<?php return null != $a',
                 '<?php return false == is_null($a)',
