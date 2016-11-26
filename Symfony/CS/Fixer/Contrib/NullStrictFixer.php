@@ -56,8 +56,13 @@ class NullStrictFixer extends AbstractFixer
 
     private function fixTokenCompositeComparsion(Tokens $tokens){
 
-        $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL));
-        $comparisons = array_merge(array_keys($comparisons[T_IS_EQUAL]), array_keys($comparisons[T_IS_IDENTICAL]));
+        $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
+        $comparisons = array_merge(
+            array_keys($comparisons[T_IS_EQUAL]),
+            array_keys($comparisons[T_IS_IDENTICAL]),
+            array_keys($comparisons[T_IS_NOT_IDENTICAL]),
+            array_keys($comparisons[T_IS_NOT_EQUAL])
+        );
         sort($comparisons);
         $lastFixedIndex = count($tokens);
         foreach (array_reverse($comparisons) as $index) {
@@ -93,8 +98,13 @@ class NullStrictFixer extends AbstractFixer
     }
 
     private function getComparisonTypes(Tokens $tokens){
-        $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL));
-        $comparisons = array_merge(array_keys($comparisons[T_IS_EQUAL]), array_keys($comparisons[T_IS_IDENTICAL]));
+        $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
+        $comparisons = array_merge(
+            array_keys($comparisons[T_IS_EQUAL]),
+            array_keys($comparisons[T_IS_IDENTICAL]),
+            array_keys($comparisons[T_IS_NOT_IDENTICAL]),
+            array_keys($comparisons[T_IS_NOT_EQUAL])
+        );
         sort($comparisons);
         return array_reverse($comparisons);
     }
@@ -123,6 +133,26 @@ class NullStrictFixer extends AbstractFixer
         $comparisons = $this->getComparisonTypes($tokens);
 
         return false === empty($comparisons);
+    }
+
+    private function applyFix(Tokens $tokens, $index){
+
+        list($starNullContent, $endNullContent) = $this->getBlockContent($tokens, $index);
+        $endRight = $this->findComparisonEnd($tokens, $index);
+
+        $comparisonType = $this->getReturnComparisonString($tokens, $index);
+
+        $left = $tokens->generatePartialCode($starNullContent, $endNullContent);
+        $left = Tokens::fromCode("<?php null $comparisonType $left");
+        $left[0]->clear();
+
+        $this->fixTokens($left);
+        for ($i = $index; $i <= $endRight; ++$i) {
+            $tokens[$i]->clear();
+        }
+
+        $tokens->insertAt($index, $left);
+        return $tokens;
     }
     /**
      * Fixes the comparison at the given index.
@@ -204,6 +234,63 @@ class NullStrictFixer extends AbstractFixer
      */
     private function fixCompositeComparison(Tokens $tokens, $index)
     {
+
+        $startLeft = $this->findComparisonStart($tokens, $index);
+        $endLeft = $tokens->getPrevNonWhitespace($index);
+        $startRight = $tokens->getNextNonWhitespace($index);
+        $endRight = $this->findComparisonEnd($tokens, $index);
+
+        $left = $tokens->generatePartialCode($startLeft, $endLeft);
+        $left = Tokens::fromCode('<?php '.$left);
+
+        $right = $tokens->generatePartialCode($startRight, $endRight);
+        $right = Tokens::fromCode('<?php '.$right);
+
+        if ( false === $this->hasExpectedCall($left) && true === $this->hasExpectedCall($right) ) {
+
+
+            $operator = $tokens[$startLeft+2];
+            $boolean = $tokens[$startLeft];
+
+            if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
+               // var_dump($operator->isGivenKind(T_IS_IDENTICAL));
+            }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
+
+                if ($operator->isGivenKind(T_IS_NOT_IDENTICAL)){
+                    if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
+
+                        $negative = $tokens->generatePartialCode($startRight, $endRight);
+                        $negative = Tokens::fromCode("<?php !$negative");
+                        $negative[0]->clear();
+
+                        for ($i = $startRight; $i <= $endRight; ++$i) {
+                            $tokens[$i]->clear();
+                        }
+
+                        $tokens->insertAt($startRight, $negative);
+                        $startRight = $tokens->getNextNonWhitespace($index)+1;
+                    }
+
+                }
+
+                for ($i = $startLeft; $i <= $startLeft+$endLeft; ++$i) {
+                    $tokens[$i]->clear();
+                }
+
+
+                $this->fixComparison($tokens, $startRight);
+
+            }
+
+            //var_dump($boolean->equals('false', true),  $startLeft,$tokens[$startLeft+2]);
+
+            /*$t = clone $right;
+            $this->fixTokenSimpleComparsion($t);
+
+            var_dump($t->generateCode());
+            var_dump('ASD');*/
+        }
+       // die(var_dump($left->generateCode()));
         //die('todo correto');
     }
 
