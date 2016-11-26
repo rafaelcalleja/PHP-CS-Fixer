@@ -52,6 +52,7 @@ class NullStrictFixer extends AbstractFixer
         }
 
         $this->fixTokenCompositeComparsion($tokens);
+        $this->fixTokenSimpleComparsion($tokens);
     }
 
     private function fixTokenCompositeComparsion(Tokens &$tokens){
@@ -72,7 +73,7 @@ class NullStrictFixer extends AbstractFixer
 
             $lastFixedIndex = $this->fixCompositeComparison($tokens, $index);
         }
-        var_dump($tokens->generateCode() . ' COMP');
+
 
     }
 
@@ -253,21 +254,20 @@ class NullStrictFixer extends AbstractFixer
 
             $operator = $tokens[$startLeft+2];
             $boolean = $tokens[$startLeft];
-            var_dump($operator, $boolean, $boolean->isNativeConstant());
 
             if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
                 if ($operator->isGivenKind([T_IS_IDENTICAL, T_IS_EQUAL])){
 
                     if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
 
-                        for ($i = $startLeft; $i <= $startLeft+$endLeft; ++$i) {
+                        for ($i = $startLeft; $i < $startRight; ++$i) {
                             $tokens[$i]->clear();
                         }
 
 
                         $tokens->insertAt($startLeft, Tokens::fromCode("true !== "));
 
-                        $tokens = $tokens->generatePartialCode(0, $endRight+1);
+                        $tokens = $tokens->generatePartialCode(0,  count($tokens) - 1);
                         $tokens = Tokens::fromCode($tokens);
 
                         $this->fixCompositeComparison($tokens, $index);
@@ -279,29 +279,32 @@ class NullStrictFixer extends AbstractFixer
             }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
 
                 if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
+
                     if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
 
-                        $negative = $tokens->generatePartialCode($startRight, $endRight);
-                        $negative = Tokens::fromCode("<?php !$negative");
-                        $negative[0]->clear();
+                        $tokens->insertAt($startRight, Tokens::fromCode("!"));
 
-                        for ($i = $startRight; $i <= $endRight; ++$i) {
-                            $tokens[$i]->clear();
-                        }
+                        $tokens = $tokens->generatePartialCode(0, count($tokens) - 1);
+                        $tokens = Tokens::fromCode($tokens);
 
-                        $tokens->insertAt($startRight, $negative);
-                        $startRight = $tokens->getNextNonWhitespace($index)+1;
+
+
                     }
 
                 }
 
-                for ($i = $startLeft; $i <= $startLeft+$endLeft; ++$i) {
+                $startRight = $tokens->getNextNonWhitespace($index);
+                $endRight = $this->findComparisonEnd($tokens, $index);
+
+                for ($i = $startLeft; $i < $startRight; ++$i) {
                     $tokens[$i]->clear();
                 }
 
 
-                $this->fixComparison($tokens, $startRight);
-                var_dump($tokens->generateCode() . " SUCCESS");
+                if ( $tokens->generatePartialCode($startRight, $endRight) === self::METHOD_STRING ){
+                    $this->fixComparison($tokens, $startRight);
+                }
+
             }
 
             //var_dump($boolean->equals('false', true),  $startLeft,$tokens[$startLeft+2]);
@@ -312,6 +315,7 @@ class NullStrictFixer extends AbstractFixer
             var_dump($t->generateCode());
             var_dump('ASD');*/
         }
+        return $index;
         //var_dump($tokens->generateCode());
        // die(var_dump($left->generateCode()));
         //die('todo correto');
@@ -332,7 +336,16 @@ class NullStrictFixer extends AbstractFixer
 
     private function getBlockContent(Tokens $tokens, $index){
 
-        $end = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $index +1);
+        $endIndex = $index;
+        while ($endIndex <= count($tokens) -1 ){
+            if ($tokens[$endIndex]->equals('(')){
+                $endIndex;
+                break;
+            }
+            $endIndex++;
+        }
+
+        $end = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $endIndex);
 
         // index = is_null
         $index +=2;// index = $a
