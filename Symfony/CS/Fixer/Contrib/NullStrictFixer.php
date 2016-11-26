@@ -37,7 +37,7 @@ class NullStrictFixer extends AbstractFixer
             EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\r\n
             ');
         }
-       // die(var_dump('GENERATED ' . $tokens->generateCode()));
+        //die(var_dump('GENERATED ' . $tokens->generateCode()));
         return $tokens->generateCode();
     }
     /**
@@ -45,7 +45,7 @@ class NullStrictFixer extends AbstractFixer
      *
      * @param Tokens $tokens The token list to fix
      */
-    private function fixTokens(Tokens $tokens)
+    private function fixTokens(Tokens &$tokens)
     {
         if ( false === $this->hasEqualOperator($tokens)){
             return $this->fixTokenSimpleComparsion($tokens);
@@ -54,7 +54,7 @@ class NullStrictFixer extends AbstractFixer
         $this->fixTokenCompositeComparsion($tokens);
     }
 
-    private function fixTokenCompositeComparsion(Tokens $tokens){
+    private function fixTokenCompositeComparsion(Tokens &$tokens){
 
         $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
         $comparisons = array_merge(
@@ -69,8 +69,10 @@ class NullStrictFixer extends AbstractFixer
             if ($index >= $lastFixedIndex) {
                 continue;
             }
+
             $lastFixedIndex = $this->fixCompositeComparison($tokens, $index);
         }
+        var_dump($tokens->generateCode() . ' COMP');
 
     }
 
@@ -232,7 +234,7 @@ class NullStrictFixer extends AbstractFixer
      *
      * @return int A upper bound for all non-fixed comparisons.
      */
-    private function fixCompositeComparison(Tokens $tokens, $index)
+    private function fixCompositeComparison(Tokens &$tokens, $index)
     {
 
         $startLeft = $this->findComparisonStart($tokens, $index);
@@ -251,12 +253,32 @@ class NullStrictFixer extends AbstractFixer
 
             $operator = $tokens[$startLeft+2];
             $boolean = $tokens[$startLeft];
+            var_dump($operator, $boolean, $boolean->isNativeConstant());
 
             if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
-               // var_dump($operator->isGivenKind(T_IS_IDENTICAL));
+                if ($operator->isGivenKind(T_IS_IDENTICAL)){
+
+                    if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
+
+                        for ($i = $startLeft; $i <= $startLeft+$endLeft; ++$i) {
+                            $tokens[$i]->clear();
+                        }
+
+
+                        $tokens->insertAt($startLeft, Tokens::fromCode("true !== "));
+
+                        $tokens = $tokens->generatePartialCode(0, $endRight+1);
+                        $tokens = Tokens::fromCode($tokens);
+
+                        $this->fixCompositeComparison($tokens, $index);
+
+                    }
+
+                }
+
             }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
 
-                if ($operator->isGivenKind(T_IS_NOT_IDENTICAL)){
+                if ($operator->isGivenKind([T_IS_NOT_IDENTICAL])){
                     if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
 
                         $negative = $tokens->generatePartialCode($startRight, $endRight);
@@ -279,7 +301,7 @@ class NullStrictFixer extends AbstractFixer
 
 
                 $this->fixComparison($tokens, $startRight);
-
+                var_dump($tokens->generateCode() . " SUCCESS");
             }
 
             //var_dump($boolean->equals('false', true),  $startLeft,$tokens[$startLeft+2]);
@@ -290,6 +312,7 @@ class NullStrictFixer extends AbstractFixer
             var_dump($t->generateCode());
             var_dump('ASD');*/
         }
+        //var_dump($tokens->generateCode());
        // die(var_dump($left->generateCode()));
         //die('todo correto');
     }
@@ -331,7 +354,7 @@ class NullStrictFixer extends AbstractFixer
     {
 
         if ($end === $start) {
-            var_dump($tokens[$start]->getContent());
+            //var_dump($tokens[$start]->getContent());
             return $tokens[$start]->isGivenKind(T_VARIABLE);
         }
         die(var_dump('LLLLG', $start <= $end, $tokens[$start]->getContent()));
