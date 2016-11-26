@@ -256,7 +256,7 @@ class NullStrictFixer extends AbstractFixer
             var_dump($operator, $boolean, $boolean->isNativeConstant());
 
             if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
-                if ($operator->isGivenKind(T_IS_IDENTICAL)){
+                if ($operator->isGivenKind([T_IS_IDENTICAL, T_IS_EQUAL])){
 
                     if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
 
@@ -278,7 +278,7 @@ class NullStrictFixer extends AbstractFixer
 
             }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
 
-                if ($operator->isGivenKind([T_IS_NOT_IDENTICAL])){
+                if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
                     if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
 
                         $negative = $tokens->generatePartialCode($startRight, $endRight);
