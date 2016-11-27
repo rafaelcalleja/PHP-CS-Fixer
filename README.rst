@@ -535,9 +535,6 @@ Choose from the list of available fixers:
 * **no_useless_return** [contrib]
    There should not be an empty return statement at the end of a function.
 
-* **null_strict** [contrib]
-   Comparisons should be done using Yoda conditions.
-
 * **ordered_use** [contrib]
    Ordering use statements.
 
