@@ -25,9 +25,9 @@ class YodaConditionsFixer extends AbstractFixer
         $tokens = Tokens::fromCode($content);
 
         $this->fixTokens($tokens);
-       // die(var_dump('GENERATED ' . $tokens->generateCode()));
         return $tokens->generateCode();
     }
+
     /**
      * Fixes the comparisons in the given tokens.
      *
@@ -83,6 +83,7 @@ class YodaConditionsFixer extends AbstractFixer
         $right[0]->clear();
 
         $this->fixTokens($left);
+
         for ($i = $startLeft; $i <= $endLeft; ++$i) {
             $tokens[$i]->clear();
         }
@@ -90,7 +91,6 @@ class YodaConditionsFixer extends AbstractFixer
         for ($i = $startRight; $i <= $endRight; ++$i) {
             $tokens[$i]->clear();
         }
-        var_dump($tokens->generateCode());
 
         $tokens->insertAt($startRight, $left);
         $tokens->insertAt($startLeft, $right);
@@ -176,7 +176,6 @@ class YodaConditionsFixer extends AbstractFixer
                 }
                 ++$index;
                 $expectString = true;
-                var_dump($tokens[$index]->getContent() .'FFF');
                 continue;
             }
 
@@ -184,17 +183,13 @@ class YodaConditionsFixer extends AbstractFixer
             if ($current->isGivenKind($expectString ? T_VARIABLE : T_STRING) && $next->equals('(')) {
 
                 if ( function_exists($tokens[$index]->getContent() )){ return true;}
-                var_dump(function_exists($tokens[$index]->getContent()),' EXIST', $tokens[$index]->getContent());
                 $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $index +1);
-                
 
                 if ($index === $end) {
-                    var_dump('$index === $end');
                     return true;
                 }
 
                 if ($index > $end) {
-                    var_dump('$index > $end');
                     return false;
                 }
 
@@ -213,6 +208,7 @@ class YodaConditionsFixer extends AbstractFixer
 
         return false;
     }
+    
     /**
      * Finds the start of the left-hand side of the comparison at the given
      * index.
@@ -245,6 +241,7 @@ class YodaConditionsFixer extends AbstractFixer
         }
         return $tokens->getNextNonWhitespace($index);
     }
+
     /**
      * Finds the end of the right-hand side of the comparison at the given
      * index.
@@ -278,6 +275,7 @@ class YodaConditionsFixer extends AbstractFixer
         }
         return $tokens->getPrevNonWhitespace($index);
     }
+
     /**
      * Checks whether the given token has a lower precedence than `T_IS_EQUAL`
      * or `T_IS_IDENTICAL`.
@@ -321,6 +319,7 @@ class YodaConditionsFixer extends AbstractFixer
         );
         return $token->isGivenKind($tokens) || $token->equalsAny($otherTokens);
     }
+
     /**
      * {@inheritdoc}
      */
