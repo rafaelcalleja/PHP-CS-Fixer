@@ -25,24 +25,16 @@ class NullStrictFixer extends AbstractFixer
     public function fix(\SplFileInfo $file, $content)
     {
         $tokens = Tokens::fromCode($content);
-        $start = $tokens->generateCode();
+        $tokens->generateCode();
 
         if ($this->hasExpectedCall($tokens)){
             $this->fixTokens($tokens);
         }
 
-        if ($start !== $tokens->generateCode() ){
-            var_dump('EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\r\n
-            EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\r\n
-            EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\r\n
-            ');
-        }
-        //die(var_dump('GENERATED ' . $tokens->generateCode()));
         return $tokens->generateCode();
     }
+
     /**
-     * Fixes the comparisons in the given tokens.
-     *
      * @param Tokens $tokens The token list to fix
      */
     private function fixTokens(Tokens &$tokens)
@@ -57,6 +49,10 @@ class NullStrictFixer extends AbstractFixer
         }
     }
 
+    /**
+     * @param Tokens $tokens
+     * @return mixed
+     */
     private function findComparisonIndex(Tokens $tokens){
         $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
         $comparisons = array_merge(
@@ -68,6 +64,10 @@ class NullStrictFixer extends AbstractFixer
         sort($comparisons);
         return current(array_reverse($comparisons));
     }
+
+    /**
+     * @param Tokens $tokens
+     */
     private function fixTokenCompositeComparsion(Tokens &$tokens){
 
         $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
@@ -90,7 +90,11 @@ class NullStrictFixer extends AbstractFixer
 
     }
 
-    private function findMethodIndex($tokens){
+    /**
+     * @param $tokens
+     * @return int
+     */
+    private function findMethodIndex(Tokens $tokens){
         $comparisons = $this->getStringType($tokens);
         $lastFixedIndex = count($tokens);
 
@@ -106,6 +110,9 @@ class NullStrictFixer extends AbstractFixer
         return 0;
     }
 
+    /**
+     * @param Tokens $tokens
+     */
     private function fixTokenSimpleComparsion(Tokens $tokens){
         $comparisons = $this->getStringType($tokens);
         $lastFixedIndex = count($tokens);
@@ -122,6 +129,10 @@ class NullStrictFixer extends AbstractFixer
         }
     }
 
+    /**
+     * @param Tokens $tokens
+     * @return array
+     */
     private function getStringType(Tokens $tokens){
         $comparisons = $tokens->findGivenKind(array(T_STRING));
         $comparisons = array_merge(array_keys($comparisons[T_STRING]));
@@ -129,6 +140,10 @@ class NullStrictFixer extends AbstractFixer
         return array_reverse($comparisons);
     }
 
+    /**
+     * @param Tokens $tokens
+     * @return array
+     */
     private function getComparisonTypes(Tokens $tokens){
         $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
         $comparisons = array_merge(
@@ -141,6 +156,10 @@ class NullStrictFixer extends AbstractFixer
         return array_reverse($comparisons);
     }
 
+    /**
+     * @param Tokens $tokens
+     * @return bool
+     */
     private function hasExpectedCall(Tokens $tokens){
 
         $comparisons = $this->getStringType($tokens);
@@ -161,41 +180,17 @@ class NullStrictFixer extends AbstractFixer
 
     }
 
+    /**
+     * @param Tokens $tokens
+     * @return bool
+     */
     private function hasEqualOperator(Tokens $tokens){
         $comparisons = $this->getComparisonTypes($tokens);
 
         return false === empty($comparisons);
     }
 
-    private function applyFix(Tokens $tokens, $index){
-
-        list($starNullContent, $endNullContent) = $this->getBlockContent($tokens, $index);
-        $endRight = $this->findComparisonEnd($tokens, $index);
-
-        $comparisonType = $this->getReturnComparisonString($tokens, $index);
-
-        $left = $tokens->generatePartialCode($starNullContent, $endNullContent);
-        $left = Tokens::fromCode("<?php null $comparisonType $left");
-        $left[0]->clear();
-
-        $this->fixTokens($left);
-        for ($i = $index; $i <= $endRight; ++$i) {
-            $tokens[$i]->clear();
-        }
-
-        $tokens->insertAt($index, $left);
-        return $tokens;
-    }
     /**
-     * Fixes the comparison at the given index.
-     *
-     * A comparison is considered fixed when
-     * - both sides are a variable (e.g. $a === $b)
-     * - neither side is a variable (e.g. self::CONST === 3)
-     * - only the right-hand side is a variable (e.g. 3 === self::$var)
-     *
-     * If the left-hand side and right-hand side of the given comparison are
-     * swapped, this function runs recursively on the previous left-hand-side.
      *
      * <?php return null === $a',
      * <?php return is_null($a)',
@@ -223,43 +218,9 @@ class NullStrictFixer extends AbstractFixer
 
         $tokens->insertAt($index, $left);
         return $index;
-
-        die(var_dump($tokens[$index]->getContent()));
-        var_dump($this->getBlockContent($tokens, $index). ' CCC');
-        $startLeft = $this->findComparisonStart($tokens, $index);
-        $endLeft = $tokens->getPrevNonWhitespace($index);
-        var_dump("\r\n\r\n\r\n  $startLeft, $endLeft");
-        if (false == $this->hasIsNullMethod($tokens, $startLeft, $endLeft)) {
-            return $index;
-        }
-
-        $left = $tokens->generatePartialCode($startLeft, $endLeft);
-        $left = Tokens::fromCode('<?php '.$left);
-        $left[0]->clear();
-
-
-        $this->fixTokens($left);
-        for ($i = $startLeft; $i <= $endLeft; ++$i) {
-            $tokens[$i]->clear();
-        }
-
-        $tokens->insertAt($startLeft, $left);
-        return $startLeft;
     }
 
     /**
-     * Fixes the comparison at the given index.
-     *
-     * A comparison is considered fixed when
-     * - both sides are a variable (e.g. $a === $b)
-     * - neither side is a variable (e.g. self::CONST === 3)
-     * - only the right-hand side is a variable (e.g. 3 === self::$var)
-     *
-     * If the left-hand side and right-hand side of the given comparison are
-     * swapped, this function runs recursively on the previous left-hand-side.
-     *
-     * <?php return null === $a',
-     * <?php return is_null($a)',
      * @param Tokens $tokens The token list
      * @param int    $index  The index of the comparison to fix
      *
@@ -363,11 +324,8 @@ class NullStrictFixer extends AbstractFixer
 
         if (true === $inversedOrder) {
             $this->switchSides($tokens);
-           // var_dump($tokens->generateCode());
 
         }
-
-
         return $index;
     }
 
@@ -381,6 +339,9 @@ class NullStrictFixer extends AbstractFixer
         return $phpTokens;
     }
 
+    /**
+     * @param Tokens $tokens
+     */
     private function switchSides(Tokens &$tokens){
         $index =  $this->findComparisonIndex($tokens);
 
@@ -408,6 +369,11 @@ class NullStrictFixer extends AbstractFixer
 
     }
 
+    /**
+     * @param Tokens $tokens
+     * @param $index
+     * @return string
+     */
     private function getReturnComparisonString(Tokens $tokens, &$index){
         --$index;
 
@@ -421,6 +387,11 @@ class NullStrictFixer extends AbstractFixer
 
     }
 
+    /**
+     * @param Tokens $tokens
+     * @param $index
+     * @return array
+     */
     private function getBlockContent(Tokens $tokens, $index){
 
         $endIndex = $index;
@@ -442,12 +413,6 @@ class NullStrictFixer extends AbstractFixer
     }
 
     /**
-     * Finds the start of the left-hand side of the comparison at the given
-     * index.
-     *
-     * The left-hand side ends when an operator with a lower precedence is
-     * encountered or when the block level for `()`, `{}` or `[]` goes below
-     * zero.
      *
      * @param Tokens $tokens The token list
      * @param int    $index  The index of the comparison
@@ -456,7 +421,6 @@ class NullStrictFixer extends AbstractFixer
      */
     private function findComparisonStart(Tokens $tokens, $index)
     {
-        //var_dump(__FUNCTION__. "\r\n\r\n" . $index);
         while (0 <= $index) {
 
             $token = $tokens[$index];
@@ -467,7 +431,6 @@ class NullStrictFixer extends AbstractFixer
 
             $block = $tokens->detectBlockType($token);
             if (null === $block) {
-                //var_dump(__FUNCTION__. "\r\n\r\n" . $token->getContent());
                 --$index;
                 continue;
             }
@@ -479,18 +442,11 @@ class NullStrictFixer extends AbstractFixer
 
             $index = $tokens->findBlockEnd($block['type'], $index, false) - 1;
         }
-        //var_dump(__FUNCTION__. "\r\n\r\n" . $tokens->getNextNonWhitespace($index));
 
         return $tokens->getNextNonWhitespace($index);
     }
+
     /**
-     * Finds the end of the right-hand side of the comparison at the given
-     * index.
-     *
-     * The right-hand side ends when an operator with a lower precedence is
-     * encountered or when the block level for `()`, `{}` or `[]` goes below
-     * zero.
-     *
      * @param Tokens $tokens The token list
      * @param int    $index  The index of the comparison
      *
@@ -516,10 +472,8 @@ class NullStrictFixer extends AbstractFixer
         }
         return $tokens->getPrevNonWhitespace($index);
     }
+
     /**
-     * Checks whether the given token has a lower precedence than `T_IS_EQUAL`
-     * or `T_IS_IDENTICAL`.
-     *
      * @param Token $token The token to check
      *
      * @return bool Whether the token has a lower precedence
@@ -559,11 +513,12 @@ class NullStrictFixer extends AbstractFixer
         );
         return $token->isGivenKind($tokens) || $token->equalsAny($otherTokens);
     }
+
     /**
      * {@inheritdoc}
      */
     public function getDescription()
     {
-        return 'Comparisons should be done using Yoda conditions.';
+        return 'is_null($expression) are replaced using null === $expression';
     }
 }
