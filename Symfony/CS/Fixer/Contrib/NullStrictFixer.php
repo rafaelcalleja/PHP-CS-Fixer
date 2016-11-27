@@ -55,6 +55,17 @@ class NullStrictFixer extends AbstractFixer
         $this->fixTokenSimpleComparsion($tokens);
     }
 
+    private function findComparisonIndex(Tokens $tokens){
+        $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
+        $comparisons = array_merge(
+            array_keys($comparisons[T_IS_EQUAL]),
+            array_keys($comparisons[T_IS_IDENTICAL]),
+            array_keys($comparisons[T_IS_NOT_IDENTICAL]),
+            array_keys($comparisons[T_IS_NOT_EQUAL])
+        );
+        sort($comparisons);
+        return current(array_reverse($comparisons));
+    }
     private function fixTokenCompositeComparsion(Tokens &$tokens){
 
         $comparisons = $tokens->findGivenKind(array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL));
@@ -75,6 +86,23 @@ class NullStrictFixer extends AbstractFixer
         }
 
 
+    }
+
+    private function findMethodIndex($tokens){
+        $comparisons = $this->getStringType($tokens);
+        $lastFixedIndex = count($tokens);
+
+        foreach ($comparisons as $index) {
+
+            if ($index >= $lastFixedIndex) {
+                continue;
+            }
+
+            if ( $tokens[$index]->getContent() === self::METHOD_STRING ){
+                return $index;
+            }
+        }
+        return 0;
     }
 
     private function fixTokenSimpleComparsion(Tokens $tokens){
@@ -178,6 +206,7 @@ class NullStrictFixer extends AbstractFixer
     private function fixComparison(Tokens $tokens, $index)
     {
         list($starNullContent, $endNullContent) = $this->getBlockContent($tokens, $index);
+
         $endRight = $this->findComparisonEnd($tokens, $index);
 
         $comparisonType = $this->getReturnComparisonString($tokens, $index);
@@ -192,8 +221,8 @@ class NullStrictFixer extends AbstractFixer
         }
 
         $tokens->insertAt($index, $left);
-
         return $index;
+
         die(var_dump($tokens[$index]->getContent()));
         var_dump($this->getBlockContent($tokens, $index). ' CCC');
         $startLeft = $this->findComparisonStart($tokens, $index);
@@ -237,7 +266,6 @@ class NullStrictFixer extends AbstractFixer
      */
     private function fixCompositeComparison(Tokens &$tokens, $index)
     {
-
         $startLeft = $this->findComparisonStart($tokens, $index);
         $endLeft = $tokens->getPrevNonWhitespace($index);
         $startRight = $tokens->getNextNonWhitespace($index);
@@ -249,76 +277,94 @@ class NullStrictFixer extends AbstractFixer
         $right = $tokens->generatePartialCode($startRight, $endRight);
         $right = Tokens::fromCode('<?php '.$right);
 
-        if ( false === $this->hasExpectedCall($left) && true === $this->hasExpectedCall($right) ) {
+        $boolIndex = $index;
+        $inversedOrder = false;
+        if ( true === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
+            $this->switchSides($tokens);
+            $inversedOrder = true;
+            $boolIndex =  $this->findComparisonIndex($tokens);
 
+            $startLeft = $this->findComparisonStart($tokens, $boolIndex);
+            $startRight = $tokens->getNextNonWhitespace($boolIndex);
+        }
 
-            $operator = $tokens[$startLeft+2];
-            $boolean = $tokens[$startLeft];
+        $operator = $tokens[$boolIndex]; //== !==
+        $boolean = $tokens[$startLeft]; // true(false
 
-            if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
-                if ($operator->isGivenKind([T_IS_IDENTICAL, T_IS_EQUAL])){
+        if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
 
-                    if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
+            if ($operator->isGivenKind([T_IS_IDENTICAL, T_IS_EQUAL])){
 
-                        for ($i = $startLeft; $i < $startRight; ++$i) {
-                            $tokens[$i]->clear();
-                        }
+                if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
 
-
-                        $tokens->insertAt($startLeft, Tokens::fromCode("true !== "));
-
-                        $tokens = $tokens->generatePartialCode(0,  count($tokens) - 1);
-                        $tokens = Tokens::fromCode($tokens);
-
-                        $this->fixCompositeComparison($tokens, $index);
-
+                    for ($i = $startLeft; $i < $startRight; ++$i) {
+                        $tokens[$i]->clear();
                     }
 
-                }
+                    $tokens->insertAt($startLeft, Tokens::fromCode("true !== "));
 
-            }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
-
-                if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
-
-                    if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
-
-                        $tokens->insertAt($startRight, Tokens::fromCode("!"));
-
-                        $tokens = $tokens->generatePartialCode(0, count($tokens) - 1);
-                        $tokens = Tokens::fromCode($tokens);
-
-
-
-                    }
-
-                }
-
-                $startRight = $tokens->getNextNonWhitespace($index);
-                $endRight = $this->findComparisonEnd($tokens, $index);
-
-                for ($i = $startLeft; $i < $startRight; ++$i) {
-                    $tokens[$i]->clear();
-                }
-
-
-                if ( $tokens->generatePartialCode($startRight, $endRight) === self::METHOD_STRING ){
-                    $this->fixComparison($tokens, $startRight);
+                    $tokens = $tokens->generatePartialCode(0,  count($tokens) - 1);
+                    $tokens = Tokens::fromCode($tokens);
+                    $this->fixCompositeComparison($tokens, $index);
                 }
 
             }
 
-            //var_dump($boolean->equals('false', true),  $startLeft,$tokens[$startLeft+2]);
+        }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
 
-            /*$t = clone $right;
-            $this->fixTokenSimpleComparsion($t);
+            if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
 
-            var_dump($t->generateCode());
-            var_dump('ASD');*/
+                    $tokens->insertAt($startRight, Tokens::fromCode("!"));
+
+                    $tokens = $tokens->generatePartialCode(0, count($tokens) - 1);
+                    $tokens = Tokens::fromCode($tokens);
+            }
+
+
+            for ($i = $startLeft; $i < $startRight; ++$i) {
+                $tokens[$i]->clear();
+            }
+
+            $tokens = $tokens->generatePartialCode(0, count($tokens) - 1);
+            $tokens = Tokens::fromCode($tokens);
+
+            if ($startRight = $this->findMethodIndex($tokens)){
+                $this->fixComparison($tokens, $startRight);
+            }
         }
+
+        if (true === $inversedOrder) {
+            $this->switchSides($tokens);
+        }
+
         return $index;
-        //var_dump($tokens->generateCode());
-       // die(var_dump($left->generateCode()));
-        //die('todo correto');
+    }
+
+    private function switchSides(Tokens &$tokens){
+        $index =  $this->findComparisonIndex($tokens);
+
+        $startLeft = $this->findComparisonStart($tokens, $index);
+        $endLeft = $tokens->getPrevNonWhitespace($index);
+        $startRight = $tokens->getNextNonWhitespace($index);
+        $endRight = $this->findComparisonEnd($tokens, $index);
+
+        if (null === $startRight){
+            return;
+        }
+
+        $prefix = $tokens->generatePartialCode(0, $startLeft-1);
+        $left = $tokens->generatePartialCode($startLeft, $endLeft);
+        $right = $tokens->generatePartialCode($startRight, $endRight);
+        $operator = $tokens->generatePartialCode($endLeft+1, $startRight-1);
+        $sufix = $tokens->generatePartialCode($endRight+1, count($tokens)-1);
+
+
+        if (false === empty($sufix)){
+            $tokens = Tokens::fromCode("$prefix$right$operator$left$sufix");
+        }else{
+            $tokens = Tokens::fromCode("$prefix$right$operator$left");
+        }
+
     }
 
     private function getReturnComparisonString(Tokens $tokens, &$index){
@@ -353,126 +399,7 @@ class NullStrictFixer extends AbstractFixer
         $startNullContent = $index;
         return [$startNullContent, --$end];
     }
-    /**
-     * Checks whether the tokens between the given start and end describe a
-     * variable.
-     *
-     * @param Tokens $tokens The token list
-     * @param int    $start  The first index of the possible variable
-     * @param int    $end    The last index of the possible varaible
-     *
-     * @return bool Whether the tokens describe a variable
-     */
-    private function hasIsNullMethod(Tokens $tokens, $start, $end)
-    {
 
-        if ($end === $start) {
-            //var_dump($tokens[$start]->getContent());
-            return $tokens[$start]->isGivenKind(T_VARIABLE);
-        }
-        die(var_dump('LLLLG', $start <= $end, $tokens[$start]->getContent()));
-        $index = $start;
-        $expectString = false;
-        while ($index <= $end) {
-
-            $current = $tokens[$index];
-            var_dump($current->getContent());
-            continue;
-            // check if this is the last token
-            if ($index === $end) {
-                return $current->isGivenKind($expectString ? T_STRING : T_VARIABLE);
-            }
-
-            $next = $tokens[$index + 1];
-            // self:: or ClassName::
-            if ($current->isGivenKind(T_STRING) && $next->isGivenKind(T_DOUBLE_COLON)) {
-                $index += 2;
-                continue;
-            }
-            // \ClassName
-            if ($current->isGivenKind(T_NS_SEPARATOR) && $next->isGivenKind(T_STRING)) {
-                ++$index;
-                continue;
-            }
-            // ClassName\
-            if ($current->isGivenKind(T_STRING) && $next->isGivenKind(T_NS_SEPARATOR)) {
-                $index += 2;
-                continue;
-            }
-            // $a-> or a-> (as in $b->a->c)
-            if ($current->isGivenKind($expectString ? T_STRING : T_VARIABLE) && $next->isGivenKind(T_OBJECT_OPERATOR)) {
-                $index += 2;
-                $expectString = true;
-                continue;
-            }
-            // {...} (as in $a->{$b})
-            if ($expectString && $current->isGivenKind(CT_DYNAMIC_PROP_BRACE_OPEN)) {
-                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_DYNAMIC_PROP_BRACE, $index);
-                if ($index === $end) {
-                    return true;
-                }
-                if ($index > $end) {
-                    return false;
-                }
-                ++$index;
-                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
-                    return false;
-                }
-                ++$index;
-                continue;
-            }
-            // $a[...] or a[...] (as in $c->a[$b])
-            if ($current->isGivenKind($expectString ? T_STRING : T_VARIABLE) && $next->equals('[')) {
-                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_SQUARE_BRACE, $index + 1);
-                if ($index === $end) {
-                    return true;
-                }
-                if ($index > $end) {
-                    return false;
-                }
-                ++$index;
-                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
-                    return false;
-                }
-                ++$index;
-                $expectString = true;
-                var_dump($tokens[$index]->getContent() .'FFF');
-                continue;
-            }
-
-            /** method($params) native call*/
-            if ($current->isGivenKind($expectString ? T_VARIABLE : T_STRING) && $next->equals('(')) {
-
-                if ( function_exists($tokens[$index]->getContent() )){ return true;}
-                var_dump(function_exists($tokens[$index]->getContent()),' EXIST', $tokens[$index]->getContent());
-                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $index +1);
-                
-
-                if ($index === $end) {
-                    var_dump('$index === $end');
-                    return true;
-                }
-
-                if ($index > $end) {
-                    var_dump('$index > $end');
-                    return false;
-                }
-
-                ++$index;
-                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
-                    return false;
-                }
-                ++$index;
-
-                $expectString = true;
-                continue;
-            }
-
-            return false;
-        }
-
-        return false;
-    }
     /**
      * Finds the start of the left-hand side of the comparison at the given
      * index.
@@ -511,7 +438,7 @@ class NullStrictFixer extends AbstractFixer
 
             $index = $tokens->findBlockEnd($block['type'], $index, false) - 1;
         }
-       // var_dump(__FUNCTION__. "\r\n\r\n" . $token->getContent());
+        //var_dump(__FUNCTION__. "\r\n\r\n" . $tokens->getNextNonWhitespace($index));
 
         return $tokens->getNextNonWhitespace($index);
     }

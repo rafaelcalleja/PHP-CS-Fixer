@@ -29,51 +29,53 @@ class NullStrictFixerTest extends AbstractFixerTestBase
     public function provideExamples()
     {
         return array(
+
+            array(
+                '<?php return $a === null',
+                '<?php return is_null($a) == true',
+            ),
+
+            array(
+                '<?php return null === $a',
+                '<?php return true == is_null($a)',
+            ),
             array(
                 '<?php return null !== $a',
                 '<?php return false == is_null($a)',
             ),
             array(
-                '<?php return null !== $a',
-                '<?php return false === is_null($a)',
-            ),
-            array(
-                '<?php return null === $a',
-                '<?php return true === is_null($a)',
-            ),
-            array(
-                '<?php return null !== $a',
-                '<?php return true !== is_null($a)', //usado para la negativa
-            ),
+                 '<?php return null !== $a',
+                 '<?php return false === is_null($a)',
+             ),
+             array(
+                 '<?php return null === $a',
+                 '<?php return true === is_null($a)',
+             ),
+             array(
+                 '<?php return null !== $a',
+                 '<?php return true !== is_null($a)', //usado para la negativa
+             ),
 
-            array(
-                '<?php return null === $a',
-                '<?php return is_null($a)',
-            ),
-            array(
-                '<?php return null !== b($a)',
-                '<?php return !is_null(b($a))',
-            ),
+             array(
+                 '<?php return null === $a',
+                 '<?php return is_null($a)',
+             ),
+             array(
+                 '<?php return null !== b($a)',
+                 '<?php return !is_null(b($a))',
+             ),
 
 
             /*
-            array(
-                '<?php return null == $a',
-                '<?php return true == is_null($a)',
-            ),
-            array(
-                '<?php return null == $a',
-                '<?php return true == is_null($a)',
-            ),
-            array(
+              array(
                 '<?php return is_null($a) == false',
                 '<?php return $a != false',
             ),
             array(
                 '<?php return is_null($a) === false',
                 '<?php return $a !== false',
-            ),*/
-
+            ),
+*/
             array(
                 '<?php
 if (null === $a || null !== $b && null !== $a) {
