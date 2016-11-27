@@ -289,15 +289,15 @@ class NullStrictFixer extends AbstractFixer
         }
 
         $operator = $tokens[$boolIndex]; //== !==
-        $boolean = $tokens[$startLeft]; // true(false
+        $boolean = $tokens[$startLeft]; // true/false
 
         if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
-
             if ($operator->isGivenKind([T_IS_IDENTICAL, T_IS_EQUAL])){
 
-                if ($tokens[$startRight]->getContent() === self::METHOD_STRING ){
+                if ($startRight = $this->findMethodIndex($tokens)){
+                    $endRight =  $tokens->getNextNonWhitespace($boolIndex);
 
-                    for ($i = $startLeft; $i < $startRight; ++$i) {
+                    for ($i = $startLeft; $i < $endRight; ++$i) {
                         $tokens[$i]->clear();
                     }
 
@@ -305,7 +305,9 @@ class NullStrictFixer extends AbstractFixer
 
                     $tokens = $tokens->generatePartialCode(0,  count($tokens) - 1);
                     $tokens = Tokens::fromCode($tokens);
-                    $this->fixCompositeComparison($tokens, $index);
+                    
+                    $this->fixCompositeComparison($tokens, $startLeft+2);
+
                 }
 
             }
@@ -335,7 +337,9 @@ class NullStrictFixer extends AbstractFixer
 
         if (true === $inversedOrder) {
             $this->switchSides($tokens);
+
         }
+
 
         return $index;
     }
