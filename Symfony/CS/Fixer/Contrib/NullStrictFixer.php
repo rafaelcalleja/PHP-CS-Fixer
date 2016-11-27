@@ -241,8 +241,9 @@ class NullStrictFixer extends AbstractFixer
 
         $boolIndex = $index;
         $inversedOrder = false;
-        if ( true === $this->hasExpectedCall($left) && true === $this->hasExpectedCall($right) ) {
 
+        if ( false === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
+            return;
         }
         if ( true === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
             $this->switchSides($tokens);
@@ -272,7 +273,6 @@ class NullStrictFixer extends AbstractFixer
                     $tokens = Tokens::fromCode($tokens);
 
                     $this->fixCompositeComparison($tokens, $startLeft+2);
-
                 }
 
             }
