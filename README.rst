@@ -476,6 +476,9 @@ Choose from the list of available fixers:
 * **whitespacy_lines** [symfony]
    Remove trailing whitespace at the end of blank lines.
 
+* **yoda_conditions** [symfony]
+   Comparisons should be done using Yoda conditions.
+
 * **align_double_arrow** [contrib]
    Align double arrow symbols in consecutive lines.
 
@@ -531,6 +534,9 @@ Choose from the list of available fixers:
 
 * **no_useless_return** [contrib]
    There should not be an empty return statement at the end of a function.
+
+* **null_strict** [contrib]
+   Comparisons should be done using Yoda conditions.
 
 * **ordered_use** [contrib]
    Ordering use statements.
