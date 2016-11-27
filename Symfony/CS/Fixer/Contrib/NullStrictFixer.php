@@ -47,12 +47,14 @@ class NullStrictFixer extends AbstractFixer
      */
     private function fixTokens(Tokens &$tokens)
     {
-        if ( false === $this->hasEqualOperator($tokens)){
-            return $this->fixTokenSimpleComparsion($tokens);
-        }
+        if ( $this->findMethodIndex($tokens)){
+            if ( false === $this->hasEqualOperator($tokens)){
+                return $this->fixTokenSimpleComparsion($tokens);
+            }
 
-        $this->fixTokenCompositeComparsion($tokens);
-        $this->fixTokenSimpleComparsion($tokens);
+            $this->fixTokenCompositeComparsion($tokens);
+            $this->fixTokenSimpleComparsion($tokens);
+        }
     }
 
     private function findComparisonIndex(Tokens $tokens){
@@ -93,7 +95,6 @@ class NullStrictFixer extends AbstractFixer
         $lastFixedIndex = count($tokens);
 
         foreach ($comparisons as $index) {
-
             if ($index >= $lastFixedIndex) {
                 continue;
             }
@@ -279,6 +280,9 @@ class NullStrictFixer extends AbstractFixer
 
         $boolIndex = $index;
         $inversedOrder = false;
+        if ( true === $this->hasExpectedCall($left) && true === $this->hasExpectedCall($right) ) {
+
+        }
         if ( true === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
             $this->switchSides($tokens);
             $inversedOrder = true;
@@ -305,7 +309,7 @@ class NullStrictFixer extends AbstractFixer
 
                     $tokens = $tokens->generatePartialCode(0,  count($tokens) - 1);
                     $tokens = Tokens::fromCode($tokens);
-                    
+
                     $this->fixCompositeComparison($tokens, $startLeft+2);
 
                 }
@@ -315,7 +319,6 @@ class NullStrictFixer extends AbstractFixer
         }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
 
             if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
-
                     $tokens->insertAt($startRight, Tokens::fromCode("!"));
 
                     $tokens = $tokens->generatePartialCode(0, count($tokens) - 1);
@@ -332,16 +335,50 @@ class NullStrictFixer extends AbstractFixer
 
             if ($startRight = $this->findMethodIndex($tokens)){
                 $this->fixComparison($tokens, $startRight);
+
             }
+        }else{
+
+            $prefix = $tokens->generatePartialCode(0, $startLeft-1);
+            $left = $tokens->generatePartialCode($startLeft, $endLeft);
+            $right = $tokens->generatePartialCode($startRight, $endRight);
+            $operator = $tokens->generatePartialCode($endLeft+1, $startRight-1);
+            $sufix = $tokens->generatePartialCode($endRight+1, count($tokens)-1);
+
+            $leftTokens = $this->createPHPTokensEncodingFromCode($left);
+            $rightTOkens = $this->createPHPTokensEncodingFromCode($right);
+
+            foreach([$leftTokens, $rightTOkens] as $fixableToken){
+                if ($startRight = $this->findMethodIndex($fixableToken)){
+                    $this->fixComparison($fixableToken, $startRight);
+                }
+            }
+
+            $left = $leftTokens->generateCode();
+            $right = $rightTOkens->generateCode();
+
+            $tokens = Tokens::fromCode("$prefix$left$operator$right$sufix");
+
         }
 
         if (true === $inversedOrder) {
             $this->switchSides($tokens);
+           // var_dump($tokens->generateCode());
 
         }
 
 
         return $index;
+    }
+
+    /**
+     * @param $code
+     * @return Tokens
+     */
+    private function createPHPTokensEncodingFromCode($code){
+        $phpTokens = Tokens::fromCode("<?php $code");
+        $phpTokens[0]->clear();
+        return $phpTokens;
     }
 
     private function switchSides(Tokens &$tokens){
