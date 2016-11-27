@@ -536,7 +536,7 @@ Choose from the list of available fixers:
    There should not be an empty return statement at the end of a function.
 
 * **null_strict** [contrib]
-   is_null($expression) are replaced using null === $expression
+   All is_null($expression) are replaced using null === $expression.
 
 * **ordered_use** [contrib]
    Ordering use statements.
