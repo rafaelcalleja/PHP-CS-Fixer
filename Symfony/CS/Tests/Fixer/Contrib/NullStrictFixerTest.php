@@ -29,15 +29,27 @@ class NullStrictFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php return null === $b === null === $a',
-                '<?php return is_null($b) === is_null($a)',
-            )
+                '<?php $x = array(1, null === null,3);',
+                '<?php $x = array(1, is_null(null),3);',
+            ),
         );
     }
 
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php $x = array(1, null === null,3);',
+                '<?php $x = array(1, is_null(null),3);',
+            ),
+            array(
+                '<?php return $a[null === $b ? $c[null !== $d] : null !== $e]',
+                '<?php return $a[is_null($b) ? $c[false == is_null($d)] : !is_null($e)]',
+            ),
+            array(
+                '<?php return $a[null === $b]',
+                '<?php return $a[is_null($b)]',
+            ),
             array(
                 '<?php return null === $b === null === $a',
                 '<?php return is_null($b) === is_null($a)',
@@ -70,27 +82,26 @@ class NullStrictFixerTest extends AbstractFixerTestBase
                 '<?php return null !== $a',
                 '<?php return false == is_null($a)',
             ),
-           array(
+            array(
                  '<?php return null !== $a',
                  '<?php return false === is_null($a)',
-             ),
-             array(
+            ),
+            array(
                  '<?php return null === $a',
                  '<?php return true === is_null($a)',
-             ),
-             array(
+            ),
+            array(
                  '<?php return null !== $a',
                  '<?php return true !== is_null($a)', //usado para la negativa
-             ),
-
-             array(
+            ),
+            array(
                  '<?php return null === $a',
                  '<?php return is_null($a)',
-             ),
-             array(
+            ),
+            array(
                  '<?php return null !== b($a)',
                  '<?php return !is_null(b($a))',
-             ),
+            ),
 
 
             /*
