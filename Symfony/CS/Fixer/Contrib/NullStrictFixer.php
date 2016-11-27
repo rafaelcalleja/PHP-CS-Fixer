@@ -519,6 +519,6 @@ class NullStrictFixer extends AbstractFixer
      */
     public function getDescription()
     {
-        return 'is_null($expression) are replaced using null === $expression';
+        return 'All is_null($expression) are replaced using null === $expression.';
     }
 }
