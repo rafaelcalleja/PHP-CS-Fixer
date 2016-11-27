@@ -31,7 +31,7 @@ class NullStrictFixerTest extends AbstractFixerTestBase
         return array(
             array(
                 '<?php return $a !== null',
-                '<?php return is_null($a) !== true', 
+                '<?php return is_null($a) !== true',
             ),
             array(
                 '<?php return $a !== null',
@@ -93,11 +93,11 @@ class NullStrictFixerTest extends AbstractFixerTestBase
             array(
                 '<?php
 if (null === $a || null !== $b && null !== $a) {
-    return (null !== $b && null === $a);
+    return (null !== $b && null === $a) || ($a !== null);
 }',
                 '<?php
 if (is_null($a) || !is_null($b) && false === is_null($a)) {
-    return (!is_null($b) && is_null($a));
+    return (!is_null($b) && is_null($a)) || (is_null($a) !== true);
 }',
             ),
         );
