@@ -375,12 +375,7 @@ class NullStrictFixer extends AbstractFixer
         $operator = $tokens->generatePartialCode($endLeft+1, $startRight-1);
         $sufix = $tokens->generatePartialCode($endRight+1, count($tokens)-1);
 
-
-        if (false === empty($sufix)){
-            $tokens = Tokens::fromCode("$prefix$right$operator$left$sufix");
-        }else{
-            $tokens = Tokens::fromCode("$prefix$right$operator$left");
-        }
+        $tokens = Tokens::fromCode("$prefix$right$operator$left$sufix");
 
     }
 
