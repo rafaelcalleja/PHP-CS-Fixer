@@ -244,8 +244,9 @@ class NullStrictFixer extends AbstractFixer
         $inversedOrder = false;
 
         if ( false === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
-            return;
+            return $index;
         }
+        
         if ( true === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
             $this->switchSides($tokens);
             $inversedOrder = true;
