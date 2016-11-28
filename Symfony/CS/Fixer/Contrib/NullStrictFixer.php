@@ -291,17 +291,15 @@ class NullStrictFixer extends AbstractFixer
 
             if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
                 $tokens->insertAt($startRight, Tokens::fromCode("!"));
-
                 $startLeft = $this->findComparisonStart($tokens, $index);
-                $endLeft = $tokens->getPrevNonWhitespace($index);
-                $startRight = $tokens->getNextNonWhitespace($index);
                 $endRight = $this->findComparisonEnd($tokens, $index);
-
-            }
+           }
 
             $toResolve = $this->createPHPTokensEncodingFromCode(
                 $tokens->generatePartialCode($startRight, $endRight)
             );
+
+
 
             $this->fixTokens($toResolve);
 
