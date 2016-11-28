@@ -62,6 +62,7 @@ class NullStrictFixer extends AbstractFixer
             array_keys($comparisons[T_IS_NOT_EQUAL])
         );
         sort($comparisons);
+
         return current(array_reverse($comparisons));
     }
 
@@ -252,6 +253,7 @@ class NullStrictFixer extends AbstractFixer
 
             $startLeft = $this->findComparisonStart($tokens, $boolIndex);
             $startRight = $tokens->getNextNonWhitespace($boolIndex);
+
         }
 
         $operator = $tokens[$boolIndex]; //== !==
@@ -261,18 +263,26 @@ class NullStrictFixer extends AbstractFixer
             if ($operator->isGivenKind([T_IS_IDENTICAL, T_IS_EQUAL])){
 
                 if ($startRight = $this->findMethodIndex($tokens)){
-                    $endRight =  $tokens->getNextNonWhitespace($boolIndex);
+                    $startRight =  $tokens->getNextNonWhitespace($boolIndex);
 
-                    for ($i = $startLeft; $i < $endRight; ++$i) {
+
+                    for ($i = $startLeft; $i < $startRight; ++$i) {
                         $tokens[$i]->clear();
                     }
 
-                    $tokens->insertAt($startLeft, Tokens::fromCode("true !== "));
+                    $toResolve = $this->createPHPTokensEncodingFromCode(
+                        "true !== ".
+                        $tokens->generatePartialCode($startLeft, $endRight)
+                    );
 
-                    $tokens = $tokens->generatePartialCode(0,  count($tokens) - 1);
-                    $tokens = Tokens::fromCode($tokens);
+                    $this->fixTokens($toResolve);
 
-                    $this->fixCompositeComparison($tokens, $startLeft+2);
+
+                    for ($i = $startRight; $i <= $endRight; ++$i) {
+                        $tokens[$i]->clear();
+                    }
+
+                    $tokens->insertAt($index, $toResolve);
                 }
 
             }
@@ -280,24 +290,31 @@ class NullStrictFixer extends AbstractFixer
         }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
 
             if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
-                    $tokens->insertAt($startRight, Tokens::fromCode("!"));
+                $tokens->insertAt($startRight, Tokens::fromCode("!"));
 
-                    $tokens = $tokens->generatePartialCode(0, count($tokens) - 1);
-                    $tokens = Tokens::fromCode($tokens);
+                $startLeft = $this->findComparisonStart($tokens, $index);
+                $endLeft = $tokens->getPrevNonWhitespace($index);
+                $startRight = $tokens->getNextNonWhitespace($index);
+                $endRight = $this->findComparisonEnd($tokens, $index);
+
             }
 
+            $toResolve = $this->createPHPTokensEncodingFromCode(
+                $tokens->generatePartialCode($startRight, $endRight)
+            );
+
+            $this->fixTokens($toResolve);
 
             for ($i = $startLeft; $i < $startRight; ++$i) {
                 $tokens[$i]->clear();
             }
 
-            $tokens = $tokens->generatePartialCode(0, count($tokens) - 1);
-            $tokens = Tokens::fromCode($tokens);
-
-            if ($startRight = $this->findMethodIndex($tokens)){
-                $this->fixComparison($tokens, $startRight);
-
+            for ($i = $startRight; $i <= $endRight; ++$i) {
+                $tokens[$i]->clear();
             }
+
+            $tokens->insertAt($index, $toResolve);
+
         }else{
 
             $prefix = $tokens->generatePartialCode(0, $startLeft-1);
