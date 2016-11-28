@@ -29,8 +29,8 @@ class NullStrictFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php return null === $var; $r[0] = false === $i ? null : $c;',
-                '<?php return is_null($var); $r[0] = false === $i ? null : $c;',
+                '<?php return $a !== null',
+                '<?php return is_null($a) !== true',
             ),
         );
     }
@@ -38,6 +38,14 @@ class NullStrictFixerTest extends AbstractFixerTestBase
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php 
+return null === b($a);
+return $a === null;',
+                '<?php 
+return is_null(b($a));
+return is_null($a) === true;',
+            ),
             array(
                 '<?php return null === $var; $r[0] = false === $i ? null : $c;',
                 '<?php return is_null($var); $r[0] = false === $i ? null : $c;',
