@@ -25,7 +25,8 @@ class NullStrictFixer extends AbstractFixer
     public function fix(\SplFileInfo $file, $content)
     {
         $tokens = Tokens::fromCode($content);
-        $tokens->generateCode();
+        $tokens->clearEmptyTokens();
+
 
         if ($this->hasExpectedCall($tokens)){
             $this->fixTokens($tokens);
@@ -39,7 +40,7 @@ class NullStrictFixer extends AbstractFixer
      */
     private function fixTokens(Tokens &$tokens)
     {
-        if ( $this->findMethodIndex($tokens)){
+        if ( $this->hasExpectedCall($tokens)){
             if ( false === $this->hasEqualOperator($tokens)){
                 return $this->fixTokenSimpleComparsion($tokens);
             }
@@ -96,6 +97,7 @@ class NullStrictFixer extends AbstractFixer
      * @return int
      */
     private function findMethodIndex(Tokens $tokens){
+
         $comparisons = $this->getStringType($tokens);
         $lastFixedIndex = count($tokens);
 
@@ -104,11 +106,11 @@ class NullStrictFixer extends AbstractFixer
                 continue;
             }
 
-            if ( $tokens[$index]->getContent() === self::METHOD_STRING ){
+            if ( $tokens[$index]->getContent() === self::METHOD_STRING || $tokens[$index]->getContent() === "!".self::METHOD_STRING){
                 return $index;
             }
         }
-        return 0;
+        return false;
     }
 
     /**
@@ -124,7 +126,7 @@ class NullStrictFixer extends AbstractFixer
                 continue;
             }
 
-            if ( $tokens[$index]->getContent() === self::METHOD_STRING ){
+            if ( $tokens[$index]->getContent() === self::METHOD_STRING || $tokens[$index]->getContent() === "!".self::METHOD_STRING ){
                 $lastFixedIndex = $this->fixComparison($tokens, $index);
             }
         }
@@ -172,7 +174,7 @@ class NullStrictFixer extends AbstractFixer
                 continue;
             }
 
-            if ( $tokens[$index]->getContent() === self::METHOD_STRING ){
+            if ( $tokens[$index]->getContent() === self::METHOD_STRING || $tokens[$index]->getContent() === "!".self::METHOD_STRING){
                 return true;
             }
         }
@@ -205,7 +207,6 @@ class NullStrictFixer extends AbstractFixer
         list($starNullContent, $endNullContent) = $this->getBlockContent($tokens, $index);
 
         $endRight = $this->findComparisonEnd($tokens, $index);
-
         $comparisonType = $this->getReturnComparisonString($tokens, $index);
 
         $left = $tokens->generatePartialCode($starNullContent, $endNullContent);
@@ -221,6 +222,8 @@ class NullStrictFixer extends AbstractFixer
         return $index;
     }
 
+    protected static $counter = 0;
+
     /**
      * @param Tokens $tokens The token list
      * @param int    $index  The index of the comparison to fix
@@ -229,6 +232,7 @@ class NullStrictFixer extends AbstractFixer
      */
     private function fixCompositeComparison(Tokens &$tokens, $index)
     {
+        self::$counter++;
         $startLeft = $this->findComparisonStart($tokens, $index);
         $endLeft = $tokens->getPrevNonWhitespace($index);
         $startRight = $tokens->getNextNonWhitespace($index);
@@ -243,48 +247,57 @@ class NullStrictFixer extends AbstractFixer
         $boolIndex = $index;
         $inversedOrder = false;
 
+
+
         if ( false === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
             return $index;
         }
         
         if ( true === $this->hasExpectedCall($left) && false === $this->hasExpectedCall($right) ) {
-            $this->switchSides($tokens);
+            $comparsion = array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL);
+            $this->switchSides($tokens, $startLeft, $endRight);
             $inversedOrder = true;
-            $boolIndex =  $this->findComparisonIndex($tokens);
 
-            $startLeft = $this->findComparisonStart($tokens, $boolIndex);
-            $startRight = $tokens->getNextNonWhitespace($boolIndex);
+            for($i = $startLeft; $i < $endRight; $i++) {
+                if($tokens[$i]->isGivenKind($comparsion)){
+                    $boolIndex = $index = $i;
+                    break;
+                }
+            }
 
+            $startLeft = $this->findComparisonStart($tokens, $index);
+            $endLeft = $tokens->getPrevNonWhitespace($index);
+            $startRight = $tokens->getNextNonWhitespace($index);
+            $endRight = $this->findComparisonEnd($tokens, $index);
         }
 
         $operator = $tokens[$boolIndex]; //== !==
         $boolean = $tokens[$startLeft]; // true/false
 
         if ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['false'], true) ){
+
             if ($operator->isGivenKind([T_IS_IDENTICAL, T_IS_EQUAL])){
 
-                if ($startRight = $this->findMethodIndex($tokens)){
-                    $startRight =  $tokens->getNextNonWhitespace($boolIndex);
+                $startRight =  $tokens->getNextNonWhitespace($boolIndex);
 
-
-                    for ($i = $startLeft; $i < $startRight; ++$i) {
-                        $tokens[$i]->clear();
-                    }
-
-                    $toResolve = $this->createPHPTokensEncodingFromCode(
-                        "true !== ".
-                        $tokens->generatePartialCode($startLeft, $endRight)
-                    );
-
-                    $this->fixTokens($toResolve);
-
-
-                    for ($i = $startRight; $i <= $endRight; ++$i) {
-                        $tokens[$i]->clear();
-                    }
-
-                    $tokens->insertAt($index, $toResolve);
+                for ($i = $startLeft; $i < $startRight; ++$i) {
+                    $tokens[$i]->clear();
                 }
+
+                $toResolve = $this->createPHPTokensEncodingFromCode(
+                    "true !== ".
+                    $tokens->generatePartialCode($startLeft, $endRight)
+                );
+
+                $this->fixTokens($toResolve);
+
+;
+                for ($i = $startRight; $i <= $endRight; ++$i) {
+                    $tokens[$i]->clear();
+                }
+
+                $tokens->insertAt($index, $toResolve);
+
 
             }
 
@@ -299,8 +312,7 @@ class NullStrictFixer extends AbstractFixer
             $toResolve = $this->createPHPTokensEncodingFromCode(
                 $tokens->generatePartialCode($startRight, $endRight)
             );
-
-
+            //die(var_dump($tokens->generatePartialCode($startRight, $endRight), $toResolve->generateCode()));
 
             $this->fixTokens($toResolve);
 
@@ -313,35 +325,44 @@ class NullStrictFixer extends AbstractFixer
             }
 
             $tokens->insertAt($index, $toResolve);
-
+        //}elseif (){
         }else{
 
-            $prefix = $tokens->generatePartialCode(0, $startLeft-1);
+
             $left = $tokens->generatePartialCode($startLeft, $endLeft);
             $right = $tokens->generatePartialCode($startRight, $endRight);
             $operator = $tokens->generatePartialCode($endLeft+1, $startRight-1);
-            $sufix = $tokens->generatePartialCode($endRight+1, count($tokens)-1);
 
             $leftTokens = $this->createPHPTokensEncodingFromCode($left);
             $rightTOkens = $this->createPHPTokensEncodingFromCode($right);
+            $operator = $this->createPHPTokensEncodingFromCode($operator);
 
             foreach([$leftTokens, $rightTOkens] as $fixableToken){
-                if ($startRight = $this->findMethodIndex($fixableToken)){
+                if (false !== ($startRight = $this->findMethodIndex($fixableToken))){
                     $this->fixComparison($fixableToken, $startRight);
                 }
             }
 
-            $left = $leftTokens->generateCode();
-            $right = $rightTOkens->generateCode();
+            for ($i = $startLeft; $i <= $endRight; ++$i) {
+                $tokens[$i]->clear();
+            }
 
-            $tokens = Tokens::fromCode("$prefix$left$operator$right$sufix");
+            $newIndex = $startLeft+count($leftTokens);
+            $tokens->insertAt($startLeft, $leftTokens);
+            $tokens->insertAt($newIndex, $operator);
+            $tokens->insertAt($startLeft+count($leftTokens)+count($operator), $rightTOkens);
 
         }
 
         if (true === $inversedOrder) {
-            $this->switchSides($tokens);
 
+            $startLeft = $this->findComparisonStart($tokens, $index);
+            $endRight = $this->findComparisonEnd($tokens, $index);
+
+            $this->switchSides($tokens, $startLeft, $endRight);
+     //       die(var_dump($inversedOrder,$tokens->generateCode(), 'asd'));
         }
+
         return $index;
     }
 
@@ -352,31 +373,58 @@ class NullStrictFixer extends AbstractFixer
     private function createPHPTokensEncodingFromCode($code){
         $phpTokens = Tokens::fromCode("<?php $code");
         $phpTokens[0]->clear();
+        $phpTokens->clearEmptyTokens();
         return $phpTokens;
     }
 
     /**
      * @param Tokens $tokens
      */
-    private function switchSides(Tokens &$tokens){
-        $index =  $this->findComparisonIndex($tokens);
+    private function switchSides(Tokens &$tokens, $startLeft, $endRight){
 
-        $startLeft = $this->findComparisonStart($tokens, $index);
-        $endLeft = $tokens->getPrevNonWhitespace($index);
-        $startRight = $tokens->getNextNonWhitespace($index);
-        $endRight = $this->findComparisonEnd($tokens, $index);
+        $initialCode = $tokens->generatePartialCode($startLeft, $endRight);
+        $partialTokens = $this->createPHPTokensEncodingFromCode(
+            $initialCode
+        );
 
-        if (null === $startRight){
+        $index = $this->findComparisonIndex($partialTokens);
+
+        if ($index <= 0){
+            var_dump('failed '.$initialCode);
             return;
         }
 
-        $prefix = $tokens->generatePartialCode(0, $startLeft-1);
-        $left = $tokens->generatePartialCode($startLeft, $endLeft);
-        $right = $tokens->generatePartialCode($startRight, $endRight);
-        $operator = $tokens->generatePartialCode($endLeft+1, $startRight-1);
-        $sufix = $tokens->generatePartialCode($endRight+1, count($tokens)-1);
+        $sl = $this->findComparisonStart($partialTokens, $index);
+        $el = $partialTokens->getPrevNonWhitespace($index);
+        $sr = $partialTokens->getNextNonWhitespace($index);
+        $er = $this->findComparisonEnd($partialTokens, $index);
+        $operator = $this->createPHPTokensEncodingFromCode($partialTokens->generatePartialCode($el+1, $sr-1));
 
-        $tokens = Tokens::fromCode("$prefix$right$operator$left$sufix");
+
+
+        $left = $partialTokens->generatePartialCode($sl, $el);
+        var_dump("left:" .$left);
+        $left = $this->createPHPTokensEncodingFromCode($left);
+
+        $right = $partialTokens->generatePartialCode($sr, $er);
+        var_dump("rigth:" .$right);
+        $right = $this->createPHPTokensEncodingFromCode($right);
+
+        for ($i = $startLeft; $i <= $endRight; ++$i) {
+            $tokens[$i]->clear();
+        }
+
+       // $operator = $this->createPHPTokensEncodingFromCode($partialTokens[$index]->getContent())->generateCode();
+        //$newTokens = $this->createPHPTokensEncodingFromCode("$right $operator $left");
+
+        $newIndex = $startLeft+count($right);
+        $tokens->insertAt($startLeft, $right);//, $operator, $left]);
+        $tokens->insertAt($newIndex, $operator);
+        $tokens->insertAt($startLeft+count($right)+count($operator), $left);
+
+        return $newIndex;
+        //$tokens->insertAt($startLeft+count($right)+count($partialTokens[$index]), $left);
+
 
     }
 
@@ -385,15 +433,15 @@ class NullStrictFixer extends AbstractFixer
      * @param $index
      * @return string
      */
-    private function getReturnComparisonString(Tokens $tokens, &$index){
+    private function getReturnComparisonString(Tokens $tokens, $index){
         --$index;
 
-        if ( "!" === $tokens[$index]->getContent() ){
+        if (false === empty($tokens[$index]) && "!" === $tokens[$index]->getContent() ){
             $tokens[$index]->clear();
             return '!==';
         }
 
-        ++$index;
+
         return '===';
 
     }
