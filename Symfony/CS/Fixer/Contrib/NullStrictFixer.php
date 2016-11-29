@@ -291,7 +291,7 @@ class NullStrictFixer extends AbstractFixer
 
                 $this->fixTokens($toResolve);
 
-;
+
                 for ($i = $startRight; $i <= $endRight; ++$i) {
                     $tokens[$i]->clear();
                 }
@@ -299,20 +299,45 @@ class NullStrictFixer extends AbstractFixer
                 $tokens->insertAt($index, $toResolve);
 
 
+            }elseif($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
+
+                $startRight =  $tokens->getNextNonWhitespace($boolIndex);
+
+                for ($i = $startLeft; $i < $startRight; ++$i) {
+                    $tokens[$i]->clear();
+                }
+
+                $toResolve = $this->createPHPTokensEncodingFromCode(
+                    "true === ".
+                    $tokens->generatePartialCode($startLeft, $endRight)
+                );
+
+                $this->fixTokens($toResolve);
+
+
+                for ($i = $startRight; $i <= $endRight; ++$i) {
+                    $tokens[$i]->clear();
+                }
+
+                $tokens->insertAt($index, $toResolve);
             }
 
         }elseif ( $boolean->isNativeConstant() &&  $boolean->isArray() && in_array(strtolower($boolean->getContent()), ['true'], true) ){
 
             if ($operator->isGivenKind([T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL])){
-                $tokens->insertAt($startRight, Tokens::fromCode("!"));
-                $startLeft = $this->findComparisonStart($tokens, $index);
-                $endRight = $this->findComparisonEnd($tokens, $index);
+
+                if ($tokens[$startRight]->getContent() !== '!'){
+                    $tokens->insertAt($startRight, Tokens::fromCode("!"));
+                    $startLeft = $this->findComparisonStart($tokens, $index);
+                    $endRight = $this->findComparisonEnd($tokens, $index);
+                }else{
+                    $tokens[$startRight]->clear();
+                }
            }
 
             $toResolve = $this->createPHPTokensEncodingFromCode(
                 $tokens->generatePartialCode($startRight, $endRight)
             );
-            //die(var_dump($tokens->generatePartialCode($startRight, $endRight), $toResolve->generateCode()));
 
             $this->fixTokens($toResolve);
 
@@ -325,10 +350,7 @@ class NullStrictFixer extends AbstractFixer
             }
 
             $tokens->insertAt($index, $toResolve);
-        //}elseif (){
         }else{
-
-
             $left = $tokens->generatePartialCode($startLeft, $endLeft);
             $right = $tokens->generatePartialCode($startRight, $endRight);
             $operator = $tokens->generatePartialCode($endLeft+1, $startRight-1);
@@ -360,7 +382,6 @@ class NullStrictFixer extends AbstractFixer
             $endRight = $this->findComparisonEnd($tokens, $index);
 
             $this->switchSides($tokens, $startLeft, $endRight);
-     //       die(var_dump($inversedOrder,$tokens->generateCode(), 'asd'));
         }
 
         return $index;
@@ -390,7 +411,6 @@ class NullStrictFixer extends AbstractFixer
         $index = $this->findComparisonIndex($partialTokens);
 
         if ($index <= 0){
-            var_dump('failed '.$initialCode);
             return;
         }
 
@@ -403,19 +423,14 @@ class NullStrictFixer extends AbstractFixer
 
 
         $left = $partialTokens->generatePartialCode($sl, $el);
-        var_dump("left:" .$left);
         $left = $this->createPHPTokensEncodingFromCode($left);
 
         $right = $partialTokens->generatePartialCode($sr, $er);
-        var_dump("rigth:" .$right);
         $right = $this->createPHPTokensEncodingFromCode($right);
 
         for ($i = $startLeft; $i <= $endRight; ++$i) {
             $tokens[$i]->clear();
         }
-
-       // $operator = $this->createPHPTokensEncodingFromCode($partialTokens[$index]->getContent())->generateCode();
-        //$newTokens = $this->createPHPTokensEncodingFromCode("$right $operator $left");
 
         $newIndex = $startLeft+count($right);
         $tokens->insertAt($startLeft, $right);//, $operator, $left]);
@@ -423,9 +438,6 @@ class NullStrictFixer extends AbstractFixer
         $tokens->insertAt($startLeft+count($right)+count($operator), $left);
 
         return $newIndex;
-        //$tokens->insertAt($startLeft+count($right)+count($partialTokens[$index]), $left);
-
-
     }
 
     /**
