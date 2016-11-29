@@ -26,11 +26,45 @@ class NullStrictFixerTest extends AbstractFixerTestBase
         $this->makeTest($expected, $input);
     }
 
+    public function provideExamplesss(){
+        return array(
+            array(
+                '<?php return null === $b === null === $a',
+                '<?php return is_null($b) === is_null($a)',
+            ),
+        );
+    }
     public function provideExampless(){
         return array(
             array(
-                '<?php return $a !== null',
-                '<?php return is_null($a) !== true',
+'<?php
+class a
+{
+    public function __construct(
+        a,b,c,d,e
+    ) {
+        $this->a = a !== null ? a : 1;
+        $this->b = b === null ? b->a() : null;
+        $this->c = c === null ? c : null;
+        $this->d = d !== null ? e : null;
+        $this->e = e === null ? e : null;
+        $this->f = f !== null ? f : null;
+    }
+',
+'<?php
+class a
+{
+    public function __construct(
+        a,b,c,d,e
+    ) {
+        $this->a = is_null(a) === false ? a : 1;
+        $this->b = is_null(b) === true ? b->a() : null;
+        $this->c = !is_null(c) === false ? c : null;
+        $this->d = is_null(d) !== false ? e : null;
+        $this->e = is_null(e) === true ? e : null;
+        $this->f = is_null(f) === false ? f : null;
+    }
+'
             ),
         );
     }
@@ -38,6 +72,14 @@ class NullStrictFixerTest extends AbstractFixerTestBase
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php $d === null',
+                '<?php is_null($d) !== false',
+            ),
+            array(
+                '<?php $c === null',
+                '<?php !is_null($c) === false',
+            ),
             array(
                 '<?php return null === $var; $r[0] = false === $i ? null : $c;',
                 '<?php return is_null($var); $r[0] = false === $i ? null : $c;',
