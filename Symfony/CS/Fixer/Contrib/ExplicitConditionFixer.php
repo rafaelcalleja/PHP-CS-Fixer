@@ -39,6 +39,10 @@ class ExplicitConditionFixer extends AbstractFixer
             $this->resolveBlock($tokens, $index, $firstNonSpace);
         }
 
+        if ( $firstNonSpace && $tokens->isUnaryPredecessorOperator($index) ){
+            $firstNonSpace = $index;
+        }
+
         $this->resolveToken($tokens, $firstNonSpace ?: $index);
 
         return $index;
@@ -113,6 +117,7 @@ class ExplicitConditionFixer extends AbstractFixer
         $tokensVarsCollections = $tokens->findGivenKind([T_VARIABLE, T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL]);
 
         if (false !== ($exclamationIndex = $this->findExclamation($tokens, $index)) && false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING])){
+
             $tokens[$exclamationIndex]->clear();
             $tokens->insertAt(
                 $exclamationIndex,
@@ -121,7 +126,6 @@ class ExplicitConditionFixer extends AbstractFixer
         }elseif( count($tokensVarsCollections[T_VARIABLE]) == 1 ){ //$a
 
             if ( false === $this->hasEqualOperator($tokens) ){
-                var_dump($index);
                 $currentOrNext = $tokens->getNextMeaningfulToken($index) ?: $index;
                 $tokens->insertAt(
                     $currentOrNext,
