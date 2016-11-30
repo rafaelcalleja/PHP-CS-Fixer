@@ -116,7 +116,7 @@ class ExplicitConditionFixer extends AbstractFixer
 
         $tokensVarsCollections = $tokens->findGivenKind([T_VARIABLE, T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL]);
 
-        if (false !== ($exclamationIndex = $this->findExclamation($tokens, $index)) && false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING])){
+        if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) && false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING])){
 
             $tokens[$exclamationIndex]->clear();
             $tokens->insertAt(
@@ -286,7 +286,7 @@ var_dump("$start, $end", $tokens[$start]->getContent());
         return $this->findSingleChar($tokens, $index, '(');
     }
 
-    private function findExclamation(Tokens $tokens, $index){
+    private function isExclamation(Tokens $tokens, $index){
         return (
             $tokens->isUnaryPredecessorOperator($index)  &&
             $tokens[$index]->equals('!')
