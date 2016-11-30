@@ -287,7 +287,10 @@ var_dump("$start, $end", $tokens[$start]->getContent());
     }
 
     private function findExclamation(Tokens $tokens, $index){
-        return $this->findSingleChar($tokens, $index, '!');
+        return (
+            $tokens->isUnaryPredecessorOperator($index)  &&
+            $tokens[$index]->equals('!')
+        ) ? $index :  false;
     }
 
     private function findSingleChar(Tokens $tokens, $index, $char){
