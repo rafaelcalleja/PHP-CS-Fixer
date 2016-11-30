@@ -141,11 +141,14 @@ class ExplicitConditionFixer extends AbstractFixer
         $tokensVarsCollections = $tokens->findGivenKind([T_VARIABLE, T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL]);
 
         if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) && false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING])){
+            $currentOrNext = $tokens->getNextMeaningfulToken($exclamationIndex) ?: $exclamationIndex;
 
+            $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'false === ' : 'false == ';
+            
             $tokens[$exclamationIndex]->clear();
             $tokens->insertAt(
                 $exclamationIndex,
-                $this->createPHPTokensEncodingFromCode('false == ')
+                $this->createPHPTokensEncodingFromCode($comparsionStrict)
             );
         }elseif( count($tokensVarsCollections[T_VARIABLE]) == 1 ){ //$a
 
