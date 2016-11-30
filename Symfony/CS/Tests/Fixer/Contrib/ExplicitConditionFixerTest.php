@@ -19,7 +19,7 @@ use Symfony\CS\Tests\Fixer\AbstractFixerTestBase;
 class ExplicitConditionFixerTest extends AbstractFixerTestBase
 {
     /**
-     * @dataProvider provideExamples
+     * @dataProvider provideExampless
      */
     public function testFixer($expected, $input = null)
     {
@@ -28,16 +28,41 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
 
     public function provideExampless(){
         return array(
-            array(
-                '<?php if (  true == $a || true == $b ) { return; }',
-                '<?php if (  $a || $b ) { return; }',
-            ),
+
+ /*           array(
+                '<?php 
+if (false == $a) else {
+}elseif (true == $b) {
+}
+return;',
+                '<?php 
+if (!$a) else {
+}elseif ($b) {
+}
+return;',
+            )*/
         );
     }
 
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php if ( true == $a || ( false == $c && (true == $d || true == $e) || false == $f ) ) { return; }',
+                '<?php if ( $a || ( !$c && ($d || $e) || !$f ) ) { return; }',
+            ),
+            array(
+                '<?php if (  false == $a || true == $b && false == $c ) { return; }',
+                '<?php if (  !$a || $b && !$c ) { return; }',
+            ),
+            array(
+                '<?php if (  true == $a || true == $b && true == $c ) { return; }',
+                '<?php if (  $a || $b && $c ) { return; }',
+            ),
+            array(
+                '<?php if (  true == $a || true == $b ) { return; }',
+                '<?php if (  $a || $b ) { return; }',
+            ),
             array(
                 '<?php if (  true == $a  ) { return; }',
                 '<?php if (  $a  ) { return; }',

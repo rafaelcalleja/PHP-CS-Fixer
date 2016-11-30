@@ -34,13 +34,35 @@ class ExplicitConditionFixer extends AbstractFixer
     private function fixCompositeComparison(Tokens $tokens, $index)
     {
         $firstNonSpace = $tokens->getNextMeaningfulToken($index); // Primer (
+
+        if ( null !== $firstNonSpace ){
+            $this->resolveBlock($tokens, $index, $firstNonSpace);
+        }
+
+        $this->resolveToken($tokens, $firstNonSpace ?: $index);
+
+        return $index;
+    }
+
+    private function resolveBlock(Tokens $tokens, $index, $firstNonSpace){
+
         $blockType = $tokens->detectBlockType($tokens[$firstNonSpace]);
-        $blockEndIndex = $tokens->findBlockEnd($blockType['type'], $firstNonSpace);
+
+        if( $blockType ){
+            $blockEndIndex = $tokens->findBlockEnd($blockType['type'], $firstNonSpace);
+        }else{
+            if (false === $tokens[$index]->equals('(')){
+                return null;
+            }
+            $blockEndIndex = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $index);
+            $firstNonSpace = $index;
+
+        }
+
 
         $ifContent = $tokens->generatePartialCode($firstNonSpace, $blockEndIndex); //string contenido del if
         $tokensContent = $this->createPHPTokensEncodingFromCode($ifContent);
         $tokensContent->clearEmptyTokens();
-
 
         foreach($tokens->findGivenKind([T_BOOLEAN_AND, T_BOOLEAN_OR,], $firstNonSpace, $blockEndIndex) as $token){
             if ( false === empty($token)) {
@@ -67,6 +89,8 @@ class ExplicitConditionFixer extends AbstractFixer
                 $right = $this->createPHPTokensEncodingFromCode(
                     $tokens->generatePartialCode($startRight, $endRight)
                 );
+                //var_dump($right->generateCode());
+                $this->fixCompositeComparison($right, 0);
 
                 $this->resolveToken($right, 0);
                 for ($i = $startRight; $i <= $endRight; ++$i) {
@@ -80,9 +104,6 @@ class ExplicitConditionFixer extends AbstractFixer
 
         }
 
-        $this->resolveToken($tokens, $firstNonSpace);
-
-        return $index;
     }
 
 
