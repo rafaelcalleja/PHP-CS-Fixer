@@ -1,0 +1,55 @@
+<?php
+
+/*
+ * This file is part of the PHP CS utility.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * This source file is subject to the MIT license that is bundled
+ * with this source code in the file LICENSE.
+ */
+
+namespace Symfony\CS\Tests\Fixer\Contrib;
+
+use Symfony\CS\Tests\Fixer\AbstractFixerTestBase;
+
+/**
+ * @author Bram Gotink <bram@gotink.me>
+ */
+class ExplicitConditionFixerTest extends AbstractFixerTestBase
+{
+    /**
+     * @dataProvider provideExamples
+     */
+    public function testFixer($expected, $input = null)
+    {
+        $this->makeTest($expected, $input);
+    }
+
+    public function provideExampless(){
+        return array(
+            array(
+                '<?php if (  true == $a || true == $b ) { return; }',
+                '<?php if (  $a || $b ) { return; }',
+            ),
+        );
+    }
+
+    public function provideExamples()
+    {
+        return array(
+            array(
+                '<?php if (  true == $a  ) { return; }',
+                '<?php if (  $a  ) { return; }',
+            ),
+            array(
+                '<?php if (true == $a) { return; }',
+                '<?php if ($a) { return; }',
+            ),
+            array(
+                '<?php if (false == $a) { return; }',
+                '<?php if (!$a) { return; }',
+            )
+        );
+    }
+}
