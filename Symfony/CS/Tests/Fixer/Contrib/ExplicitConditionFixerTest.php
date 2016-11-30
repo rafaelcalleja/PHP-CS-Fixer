@@ -29,8 +29,8 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php if (  false == $a || true == $b && false == $c ) { return; }',
-                '<?php if (  !$a || $b && !$c ) { return; }',
+                '<?php if (true == $b|| false == $a && false == $c ) { return; }',
+                '<?php if ($b|| !$a && !$c ) { return; }',
             ),
  /*           array(
                 '<?php 
@@ -50,6 +50,10 @@ return;',
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php if (true == $b|| false == $a && false == $c ) { return; }',
+                '<?php if ($b|| !$a && !$c ) { return; }',
+            ),
             array(
                 '<?php if ( true == $a || ( false == $c && (true == $d || true == $e) || false == $f ) ) { return; }',
                 '<?php if ( $a || ( !$c && ($d || $e) || !$f ) ) { return; }',
