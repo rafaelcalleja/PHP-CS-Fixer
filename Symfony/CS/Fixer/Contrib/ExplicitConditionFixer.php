@@ -42,10 +42,24 @@ class ExplicitConditionFixer extends AbstractFixer
         if ( $firstNonSpace && $tokens->isUnaryPredecessorOperator($index) ){
             $firstNonSpace = $index;
         }
-
         $this->resolveToken($tokens, $firstNonSpace ?: $index);
 
         return $index;
+    }
+
+    /**
+     * @param Tokens $tokens
+     * @return array
+     */
+    private function getReverseKindTypes(Tokens $tokens, $type, $start, $end){
+        $comparisons = $tokens->findGivenKind($type, $start, $end);
+        $ret = [];
+
+        foreach($type as $key){
+            $ret = array_merge($ret, array_keys($comparisons[$key]));
+        }
+        sort($ret);
+        return array_reverse($ret);
     }
 
     private function resolveBlock(Tokens $tokens, $index, $firstNonSpace){
@@ -65,70 +79,49 @@ class ExplicitConditionFixer extends AbstractFixer
 
 
         $ifContent = $tokens->generatePartialCode($firstNonSpace, $blockEndIndex); //string contenido del if
+
         $tokensContent = $this->createPHPTokensEncodingFromCode($ifContent);
         $tokensContent->clearEmptyTokens();
 
-
-        $collectionToChange = [];
         $count = 0;
-        foreach($tokens->findGivenKind([T_BOOLEAN_AND, T_BOOLEAN_OR,], $firstNonSpace, $blockEndIndex) as $token){
-            if ( false === empty($token)) {
-                $boolIndex = key($token);
+        $reverseIndexsOfToken = $this->getReverseKindTypes($tokens, [T_BOOLEAN_AND, T_BOOLEAN_OR,], $firstNonSpace, $blockEndIndex);
 
+        foreach($reverseIndexsOfToken as $boolIndex){
 
+            //left
+            $startLeft = $this->findComparisonStart($tokens, $boolIndex-1);
+            $endLeft = $tokens->getPrevNonWhitespace($boolIndex);
 
+            $left = $this->createPHPTokensEncodingFromCode(
+                $tokens->generatePartialCode($startLeft, $endLeft)
+            );
 
-
-                //left
-                $startLeft = $this->findComparisonStart($tokens, $boolIndex-1);
-                $endLeft = $tokens->getPrevNonWhitespace($boolIndex);
-
-                $left = $this->createPHPTokensEncodingFromCode(
-                    $tokens->generatePartialCode($startLeft, $endLeft)
-                );
-
-                $this->resolveToken($left, 0);
-                for ($i = $startLeft; $i <= $endLeft; ++$i) {
-                    $tokens[$i]->clear();
-                }
-               // var_dump('LEFT:'.$left->generateCode());
-                //right
-                $startRight = $tokens->getNextNonWhitespace($boolIndex);
-                $endRight = $this->findComparisonEnd($tokens, $boolIndex+1);
-
-
-                $right = $this->createPHPTokensEncodingFromCode(
-                    $tokens->generatePartialCode($startRight, $endRight)
-                );
-
-                $this->fixCompositeComparison($right, 0);
-
-                $this->resolveToken($right, 0);
-                for ($i = $startRight; $i <= $endRight; ++$i) {
-                    $tokens[$i]->clear();
-                }
-//                var_dump('RIGHT:'.$right->generateCode());
-
-               // $collectionToChange[] = [$startRight, $right];
-               // $collectionToChange[] = [$startLeft, $left];
-                $tokens->insertAt($startRight, $right);
-                $tokens->insertAt($startLeft, $left);
-
-                if ($this->hasGivenType(
-                    $tokens,
-                    [T_BOOLEAN_AND, T_BOOLEAN_OR,],
-                    $boolIndex+1,
-                    $blockEndIndex
-                )){
-                    $this->fixCompositeComparison($tokens, $boolIndex+1);
-                    var_dump($tokens->generatePartialCode($boolIndex+1, $blockEndIndex));
-                }
-
+            $this->resolveToken($left, 0);
+            for ($i = $startLeft; $i <= $endLeft; ++$i) {
+                $tokens[$i]->clear();
             }
+           // var_dump('LEFT:'.$left->generateCode());
+            //right
+            $startRight = $tokens->getNextNonWhitespace($boolIndex);
+            $endRight = $this->findComparisonEnd($tokens, $boolIndex+1);
+
+
+            $right = $this->createPHPTokensEncodingFromCode(
+                $tokens->generatePartialCode($startRight, $endRight)
+            );
+
+            $this->fixCompositeComparison($right, 0);
+
+            $this->resolveToken($right, 0);
+            for ($i = $startRight; $i <= $endRight; ++$i) {
+                $tokens[$i]->clear();
+            }
+          //  var_dump('RIGHT:'.$right->generateCode());
+
+            $tokens->insertAt($startRight, $right);
+            $tokens->insertAt($startLeft, $left);
 
         }
-        var_dump($count);
-
     }
 
     private function hasGivenType(Tokens $tokens,array $types, $start, $end){
@@ -158,9 +151,10 @@ class ExplicitConditionFixer extends AbstractFixer
 
             if ( false === $this->hasEqualOperator($tokens) ){
                 $currentOrNext = $tokens->getNextMeaningfulToken($index) ?: $index;
+                $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 $tokens->insertAt(
                     $currentOrNext,
-                    $this->createPHPTokensEncodingFromCode('true == ')
+                    $this->createPHPTokensEncodingFromCode($comparsionStrict)
                 );
             }
 
@@ -171,6 +165,23 @@ class ExplicitConditionFixer extends AbstractFixer
         return $index;
 
 
+    }
+
+    private function isStrictComparsion(Token $token){
+
+        static $tokensList;
+
+        if (null === $tokensList) {
+            $tokensList = array(
+                T_ISSET
+            );
+        }
+
+        static $otherTokens = array(
+            'is_null',
+        );
+
+        return $token->isGivenKind($tokensList) || $token->equalsAny($otherTokens);
     }
 
     /**
