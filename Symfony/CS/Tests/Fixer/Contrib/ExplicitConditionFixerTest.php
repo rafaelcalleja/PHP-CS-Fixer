@@ -28,28 +28,28 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
 
     public function provideExampless(){
         return array(
-            array(
-                '<?php if (false === isset($var)) { return; }',
-                '<?php if (!isset($var)) { return; }',
-            ),
- /*           array(
+           array(
                 '<?php 
 if (false == $a) else {
 }elseif (true == $b) {
-}
-return;',
+}elseif (false === isset($var)) {
+}return;',
                 '<?php 
 if (!$a) else {
 }elseif ($b) {
-}
-return;',
-            )*/
+}elseif (!isset($var)) {
+}return;',
+            )
         );
     }
 
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php if (false === isset($var)) { return; }',
+                '<?php if (!isset($var)) { return; }',
+            ),
             array(
                 '<?php if (true === isset($var)) { return; }',
                 '<?php if (isset($var)) { return; }',

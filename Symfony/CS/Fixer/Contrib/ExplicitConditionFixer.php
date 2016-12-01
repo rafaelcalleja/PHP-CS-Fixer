@@ -213,109 +213,6 @@ class ExplicitConditionFixer extends AbstractFixer
         return array_reverse($comparisons);
     }
 
-    private function isVariable(Tokens $tokens, $start, $end)
-    {
-var_dump("$start, $end", $tokens[$start]->getContent());
-        if ($end === $start) {
-            return $tokens[$start]->isGivenKind(T_VARIABLE);
-        }
-
-        $index = $start;
-        $expectString = false;
-
-        while ($index <= $end) {
-
-            $current = $tokens[$index];
-            // check if this is the last token
-            if ($index === $end) {
-                return $current->isGivenKind($expectString ? T_STRING : T_VARIABLE);
-            }
-
-            $next = $tokens[$index + 1];
-            // self:: or ClassName::
-            if ($current->isGivenKind(T_STRING) && $next->isGivenKind(T_DOUBLE_COLON)) {
-                $index += 2;
-                continue;
-            }
-            // \ClassName
-            if ($current->isGivenKind(T_NS_SEPARATOR) && $next->isGivenKind(T_STRING)) {
-                ++$index;
-                continue;
-            }
-            // ClassName\
-            if ($current->isGivenKind(T_STRING) && $next->isGivenKind(T_NS_SEPARATOR)) {
-                $index += 2;
-                continue;
-            }
-            // $a-> or a-> (as in $b->a->c)
-            if ($current->isGivenKind($expectString ? T_STRING : T_VARIABLE) && $next->isGivenKind(T_OBJECT_OPERATOR)) {
-                $index += 2;
-                $expectString = true;
-                continue;
-            }
-            // {...} (as in $a->{$b})
-            if ($expectString && $current->isGivenKind(CT_DYNAMIC_PROP_BRACE_OPEN)) {
-                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_DYNAMIC_PROP_BRACE, $index);
-                if ($index === $end) {
-                    return true;
-                }
-                if ($index > $end) {
-                    return false;
-                }
-                ++$index;
-                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
-                    return false;
-                }
-                ++$index;
-                continue;
-            }
-            // $a[...] or a[...] (as in $c->a[$b])
-            if ($current->isGivenKind($expectString ? T_STRING : T_VARIABLE) && $next->equals('[')) {
-                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_SQUARE_BRACE, $index + 1);
-                if ($index === $end) {
-                    return true;
-                }
-                if ($index > $end) {
-                    return false;
-                }
-                ++$index;
-                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
-                    return false;
-                }
-                ++$index;
-                $expectString = true;
-                continue;
-            }
-
-            /** method($params) native call*/
-            if ($current->isGivenKind($expectString ? T_VARIABLE : T_STRING) && $next->equals('(')) {
-
-                if ( function_exists($tokens[$index]->getContent() )){ return true;}
-                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $index +1);
-
-                if ($index === $end) {
-                    return true;
-                }
-
-                if ($index > $end) {
-                    return false;
-                }
-
-                ++$index;
-                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
-                    return false;
-                }
-                ++$index;
-
-                $expectString = true;
-                continue;
-            }
-            return false;
-        }
-
-        return false;
-    }
-
     /**
      * @param $code
      * @return Tokens
@@ -325,10 +222,6 @@ var_dump("$start, $end", $tokens[$start]->getContent());
         $phpTokens[0]->clear();
         $phpTokens->clearEmptyTokens();
         return $phpTokens;
-    }
-
-    private function findOpenBrace(Tokens $tokens, $index){
-        return $this->findSingleChar($tokens, $index, '(');
     }
 
     private function isExclamation(Tokens $tokens, $index){
@@ -343,29 +236,14 @@ var_dump("$start, $end", $tokens[$start]->getContent());
         ) ? $index :  false;
     }
 
-    private function findSingleChar(Tokens $tokens, $index, $char){
-
-        for($x = $index;$x < count($tokens); $x++){
-            if ($tokens[$x]->getContent() === $char) return $x;
-        }
-
-        return false;
-    }
-
     private function fixTokens(Tokens $tokens)
     {
 
-        $comparisons = $tokens->findGivenKind(array(T_IF, T_ELSEIF));
+        $comparisons = $this->getReverseKindTypes($tokens,[T_IF, T_ELSEIF], 0, count($tokens) -1);
 
-        $comparisons = array_merge(
-            array_keys($comparisons[T_IF]),
-            array_keys($comparisons[T_ELSEIF])
-        );
-
-        sort($comparisons);
         $lastFixedIndex = count($tokens);
 
-        foreach (array_reverse($comparisons) as $index) {
+        foreach ($comparisons as $index) {
             if ($index >= $lastFixedIndex) {
 
                 continue;
