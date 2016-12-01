@@ -77,13 +77,11 @@ class ExplicitConditionFixer extends AbstractFixer
 
         }
 
-
         $ifContent = $tokens->generatePartialCode($firstNonSpace, $blockEndIndex); //string contenido del if
 
         $tokensContent = $this->createPHPTokensEncodingFromCode($ifContent);
         $tokensContent->clearEmptyTokens();
 
-        $count = 0;
         $reverseIndexsOfToken = $this->getReverseKindTypes($tokens, [T_BOOLEAN_AND, T_BOOLEAN_OR,], $firstNonSpace, $blockEndIndex);
 
         foreach($reverseIndexsOfToken as $boolIndex){
@@ -138,7 +136,24 @@ class ExplicitConditionFixer extends AbstractFixer
 
     private function resolveToken(Tokens $tokens, $index){
 
-        $tokensVarsCollections = $tokens->findGivenKind([T_VARIABLE, T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL]);
+
+        $currentOrNext = $tokens->getNextMeaningfulToken($index) ?: $index;
+        $blockEnd = $this->findComparisonEnd($tokens, $currentOrNext);
+
+        $blockTokens = ($blockEnd > 0) ? $this->createPHPTokensEncodingFromCode(
+            $tokens->generatePartialCode($tokens->getNextMeaningfulToken($index),
+                $blockEnd
+            )
+        ) : $tokens;
+
+        if ( $blockTokens[0]->isGivenKind())
+
+        var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
+        var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd));
+
+
+
+        $tokensVarsCollections = $blockTokens->findGivenKind([T_VARIABLE, T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL]);
 
         if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) && false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING])){
             $currentOrNext = $tokens->getNextMeaningfulToken($exclamationIndex) ?: $exclamationIndex;
@@ -150,10 +165,11 @@ class ExplicitConditionFixer extends AbstractFixer
                 $exclamationIndex,
                 $this->createPHPTokensEncodingFromCode($comparsionStrict)
             );
-        }elseif( count($tokensVarsCollections[T_VARIABLE]) == 1 ){ //$a
+        } else {
+  //          var_dump( $blockTokens->generateCode());
+//var_dump($index, $currentOrNext );
+            if ( false === $this->hasEqualOperator($blockTokens) && count($tokensVarsCollections[T_VARIABLE]) == 1){
 
-            if ( false === $this->hasEqualOperator($tokens) ){
-                $currentOrNext = $tokens->getNextMeaningfulToken($index) ?: $index;
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 $tokens->insertAt(
                     $currentOrNext,
@@ -161,7 +177,6 @@ class ExplicitConditionFixer extends AbstractFixer
                 );
             }
 
-        }else{
 
         }
 
@@ -192,9 +207,8 @@ class ExplicitConditionFixer extends AbstractFixer
      * @return bool
      */
     private function hasEqualOperator(Tokens $tokens){
-        $comparisons = $this->getComparisonTypes($tokens);
-
-        return false === empty($comparisons);
+        $comparisons = $this->hasGivenType($tokens, array(T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL), 0, count($tokens) -1);
+        return $comparisons;
     }
 
     /**
@@ -243,9 +257,9 @@ class ExplicitConditionFixer extends AbstractFixer
 
         $lastFixedIndex = count($tokens);
 
+
         foreach ($comparisons as $index) {
             if ($index >= $lastFixedIndex) {
-
                 continue;
             }
 
@@ -346,6 +360,8 @@ class ExplicitConditionFixer extends AbstractFixer
                 T_LOGICAL_AND, T_LOGICAL_OR, T_LOGICAL_XOR,
                 // keywords like 'return'
                 T_RETURN, T_THROW, T_GOTO, T_CASE,
+                // if elseif
+                T_IF, T_ELSEIF,
             );
             // PHP 5.6 introduced **=
             if (defined('T_POW_EQUAL')) {
