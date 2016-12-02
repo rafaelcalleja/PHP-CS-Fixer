@@ -298,18 +298,27 @@ class ExplicitConditionFixer extends AbstractFixer
             while ($tempIndex >= 0)
             {
 
-                if($indexCurrentComparison = $this->isTokenOfLowerPrecedence($tokens[$tempIndex])){
+                if($this->isTokenOfLowerPrecedence($tokens[$tempIndex])){
 
                     break;
                 }
                 $tempIndex--;
             }
 
+
+            $nextComparison = $tempIndex+1;
+            while ($nextComparison < count($tokens)-1)
+            {
+                if($this->isTokenOfLowerPrecedence($tokens[$nextComparison])){
+                    break;
+                }
+                $nextComparison++;
+            }
+
             $currentComparison = $this->createPHPTokensEncodingFromCode(
-                $tokens->generatePartialCode($tempIndex+1, $this->findComparisonEnd($tokens, $tempIndex+1))
+                $tokens->generatePartialCode($tempIndex+1, $nextComparison-1)
             );
 
-            //var_dump( false === $this->hasEqualOperator($tokens) ,$currentComparison->generateCode());
             if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 $tokens->insertAt(
