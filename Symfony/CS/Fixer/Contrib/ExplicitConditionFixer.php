@@ -96,16 +96,11 @@ class ExplicitConditionFixer extends AbstractFixer
 
             $leftInsert = false;
             if ( $this->isVariable($left, 0, count($left) -1)){
-                var_dump('LEFT:'.$left->generateCode());
                 $this->resolveToken($left, 0);
-                var_dump('AFTER:'.$left->generateCode());
-                var_dump('LOKE' . $tokens->generatePartialCode($startLeft-3, $endLeft+3));
                 for ($i = $startLeft; $i <= $endLeft; ++$i) {
                     $tokens[$i]->clear();
                 }
-
                 $leftInsert = true;
-
             }
 
 
@@ -131,7 +126,7 @@ class ExplicitConditionFixer extends AbstractFixer
             if ( $leftInsert ){
                 $tokens->insertAt($startLeft, $left);
             }else{
-                var_dump('WHEN NO'.$startLeft);
+              //  var_dump('WHEN NO'.$startLeft);
             }
         }
     }
@@ -275,8 +270,10 @@ class ExplicitConditionFixer extends AbstractFixer
 
 
 
- /*       var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
-        var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd));*/
+        /*var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
+        var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd),
+            $blockTokens->generateCode(),
+            $this->isVariable($blockTokens, 0, count($blockTokens) -1));*/
 
 
 
@@ -297,16 +294,31 @@ class ExplicitConditionFixer extends AbstractFixer
 
             //var_dump( $blockTokens->generateCode() . ' ' . strval($this->hasEqualOperator($blockTokens)));
 //var_dump($index, $currentOrNext );
-            if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($tokens) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
+            $tempIndex = $index;
+            while ($tempIndex >= 0)
+            {
 
+                if($indexCurrentComparison = $this->isTokenOfLowerPrecedence($tokens[$tempIndex])){
+
+                    break;
+                }
+                $tempIndex--;
+            }
+
+            $currentComparison = $this->createPHPTokensEncodingFromCode(
+                $tokens->generatePartialCode($tempIndex+1, $this->findComparisonEnd($tokens, $tempIndex+1))
+            );
+
+            //var_dump( false === $this->hasEqualOperator($tokens) ,$currentComparison->generateCode());
+            if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 $tokens->insertAt(
                     $currentOrNext,
                     $this->createPHPTokensEncodingFromCode($comparsionStrict)
                 );
 
-                var_dump($this->isVariable($blockTokens, 0, count($blockTokens) -1));
-                var_dump('FIXED ' .$blockTokens->generateCode(), "$currentOrNext : $blockEnd");
+               // var_dump($this->isVariable($blockTokens, 0, count($blockTokens) -1));
+//                var_dump('FIXED ' .$blockTokens->generateCode(), "$currentOrNext : $blockEnd");
 
             }else{
                 if ($index < count($tokens)-2){
@@ -327,7 +339,7 @@ class ExplicitConditionFixer extends AbstractFixer
 
 
 
-                var_dump($blockTokens->generateCode(), $this->isVariable($blockTokens, 0, count($blockTokens) -1));
+              //  var_dump($blockTokens->generateCode(), $this->isVariable($blockTokens, 0, count($blockTokens) -1));
             }
 
 

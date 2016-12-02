@@ -29,9 +29,17 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php if (true === isset($var)) { return; }',
-                '<?php if (isset($var)) { return; }',
-            ),
+                '<?php 
+if (false == $a) else {
+}elseif (true == $b) {
+}elseif (false === isset($var)) {
+}return;',
+                '<?php 
+if (!$a) else {
+}elseif ($b) {
+}elseif (!isset($var)) {
+}return;',
+            )
         );
     }
 
