@@ -256,6 +256,19 @@ class ExplicitConditionFixer extends AbstractFixer
         return false;
     }
 
+
+    public function hasBoolReturnValueByFuncName($name){
+        static $boolFunctions = array(
+            'boolval',
+        );
+        if ( !function_exists($name) ){
+            return false;
+        }
+
+        return strpos($name, 'is_') === 0 || in_array($name, $boolFunctions) ;
+    }
+
+
     private function resolveToken(Tokens $tokens, $index){
 
 
@@ -275,11 +288,15 @@ class ExplicitConditionFixer extends AbstractFixer
             $blockTokens->generateCode(),
             $this->isVariable($blockTokens, 0, count($blockTokens) -1));*/
 
+        //var_dump($currentComparison->generateCode());
+       // var_dump($tokens[$this->isExclamation($tokens, $index)+1]->isGivenKind([T_STRING]));
 
-
-        $tokensVarsCollections = $blockTokens->findGivenKind([T_VARIABLE, T_IS_EQUAL, T_IS_IDENTICAL, T_IS_NOT_IDENTICAL, T_IS_NOT_EQUAL]);
-
-        if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) && false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING])){
+        if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) &&
+            (
+                false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING]) ||
+                ( true == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING]) && $tokens[$exclamationIndex+2]->equals('('))
+            )
+        ){
             $currentOrNext = $tokens->getNextMeaningfulToken($exclamationIndex) ?: $exclamationIndex;
 
             $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'false === ' : 'false == ';
@@ -294,30 +311,9 @@ class ExplicitConditionFixer extends AbstractFixer
 
             //var_dump( $blockTokens->generateCode() . ' ' . strval($this->hasEqualOperator($blockTokens)));
 //var_dump($index, $currentOrNext );
-            $tempIndex = $index;
-            while ($tempIndex >= 0)
-            {
+            list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
 
-                if($this->isTokenOfLowerPrecedence($tokens[$tempIndex])){
-
-                    break;
-                }
-                $tempIndex--;
-            }
-
-
-            $nextComparison = $tempIndex+1;
-            while ($nextComparison < count($tokens)-1)
-            {
-                if($this->isTokenOfLowerPrecedence($tokens[$nextComparison])){
-                    break;
-                }
-                $nextComparison++;
-            }
-
-            $currentComparison = $this->createPHPTokensEncodingFromCode(
-                $tokens->generatePartialCode($tempIndex+1, $nextComparison-1)
-            );
+            $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
 
             if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
@@ -359,6 +355,7 @@ class ExplicitConditionFixer extends AbstractFixer
 
     }
 
+
     private function isStrictComparsion(Token $token){
 
         static $tokensList;
@@ -370,11 +367,7 @@ class ExplicitConditionFixer extends AbstractFixer
             );
         }
 
-        static $otherTokens = array(
-            'is_null',
-        );
-
-        return $token->isGivenKind($tokensList) || $token->equalsAny($otherTokens);
+        return $token->isGivenKind($tokensList) || $this->hasBoolReturnValueByFuncName($token->getContent());
     }
 
     /**
@@ -562,5 +555,49 @@ class ExplicitConditionFixer extends AbstractFixer
     public function getDescription()
     {
         return 'Enforce explicit conditional on expressions.';
+    }
+
+    /**
+     * @param Tokens $tokens
+     * @param $index
+     * @return array
+     */
+    private function boundIndex(Tokens $tokens, $index)
+    {
+        $tempIndex = $index;
+        while ($tempIndex >= 0) {
+
+            if ($this->isTokenOfLowerPrecedence($tokens[$tempIndex])) {
+
+                break;
+            }
+            $tempIndex--;
+        }
+
+
+        $nextComparison = $tempIndex + 1;
+
+        while ($nextComparison < count($tokens) - 1) {
+            if ($this->isTokenOfLowerPrecedence($tokens[$nextComparison])) {
+                break;
+            }
+            $nextComparison++;
+        }
+
+        return array($tempIndex, $nextComparison);
+    }
+
+    /**
+     * @param Tokens $tokens
+     * @param $tempIndex
+     * @param $nextComparison
+     * @return Tokens
+     */
+    private function creteTokensFromBounds(Tokens $tokens, $tempIndex, $nextComparison)
+    {
+        $currentComparison = $this->createPHPTokensEncodingFromCode(
+            $tokens->generatePartialCode($tempIndex + 1, $nextComparison - 1)
+        );
+        return $currentComparison;
     }
 }

@@ -19,6 +19,25 @@ use Symfony\CS\Tests\Fixer\AbstractFixerTestBase;
 class ExplicitConditionFixerTest extends AbstractFixerTestBase
 {
     /**
+     * @dataProvider provideFunc
+     */
+    public function testBoolFunctions($name, $expected){
+        $fixer = $this->getFixer();
+
+        $actual = $fixer->hasBoolReturnValueByFuncName($name);
+        $this->assertSame($expected, $actual);
+    }
+
+    public function provideFunc(){
+        return [
+            ['is_null', true],
+            ['is_a', true],
+            ['is_unknon',false],
+            ['boolval', true],
+            ['gettype', false],
+        ];
+    }
+    /**
      * @dataProvider provideExamples
      */
     public function testFixer($expected, $input = null)
@@ -29,23 +48,19 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php 
-if (true == $a) else {
-}elseif (false == $b||true == $a) {
-}elseif (true === isset($var)||false === isset($var)) {
-}return;',
-                '<?php 
-if ($a) else {
-}elseif (!$b||$a) {
-}elseif (isset($var)||!isset($var)) {
-}return;',
-            )
+                '<?php if (false == boolval($var)) { return; }',
+                '<?php if (!gettype($var)) { return; }',
+            ),
         );
     }
 
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php if (false === boolval($var)) { return; }',
+                '<?php if (!boolval($var)) { return; }',
+            ),
             array(
                 '<?php if (false === isset($var)) { return; }',
                 '<?php if (!isset($var)) { return; }',
@@ -96,6 +111,18 @@ if (false == $a) else {
 if (!$a) else {
 }elseif ($b) {
 }elseif (!isset($var)) {
+}return;',
+            ),
+            array(
+                '<?php 
+if (true == $a) else {
+}elseif (false == $b||true == $a) {
+}elseif (true === isset($var)||false === isset($var)) {
+}return;',
+                '<?php 
+if ($a) else {
+}elseif (!$b||$a) {
+}elseif (isset($var)||!isset($var)) {
 }return;',
             )
         );
