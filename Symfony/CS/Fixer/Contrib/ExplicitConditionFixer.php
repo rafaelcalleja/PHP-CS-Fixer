@@ -365,7 +365,8 @@ class ExplicitConditionFixer extends AbstractFixer
 
         if (null === $tokensList) {
             $tokensList = array(
-                T_ISSET
+                T_ISSET,
+                T_EMPTY,
             );
         }
 
