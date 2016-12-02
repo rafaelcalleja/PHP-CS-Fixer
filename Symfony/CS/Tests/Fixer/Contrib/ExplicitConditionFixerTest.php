@@ -30,14 +30,14 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
         return array(
             array(
                 '<?php 
-if (false == $a) else {
-}elseif (true == $b) {
-}elseif (false === isset($var)) {
+if (true == $a) else {
+}elseif (false == $b||true == $a) {
+}elseif (true === isset($var)||false === isset($var)) {
 }return;',
                 '<?php 
-if (!$a) else {
-}elseif ($b) {
-}elseif (!isset($var)) {
+if ($a) else {
+}elseif (!$b||$a) {
+}elseif (isset($var)||!isset($var)) {
 }return;',
             )
         );
