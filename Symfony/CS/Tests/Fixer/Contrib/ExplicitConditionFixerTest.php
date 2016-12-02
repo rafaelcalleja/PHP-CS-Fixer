@@ -19,7 +19,7 @@ use Symfony\CS\Tests\Fixer\AbstractFixerTestBase;
 class ExplicitConditionFixerTest extends AbstractFixerTestBase
 {
     /**
-     * @dataProvider provideExampless
+     * @dataProvider provideExamples
      */
     public function testFixer($expected, $input = null)
     {
@@ -29,8 +29,8 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php if (true == $b|| true == $a && false == $c ) { return; }',
-                '<?php if ($b|| $a && !$c ) { return; }',
+                '<?php if ( true == $a || ( false == $c && (true == $d || true == $e) || false == $f ) ) { return; }',
+                '<?php if ( $a || ( !$c && ($d || $e) || !$f ) ) { return; }',
             ),
         );
     }

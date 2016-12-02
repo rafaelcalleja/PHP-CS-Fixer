@@ -94,10 +94,21 @@ class ExplicitConditionFixer extends AbstractFixer
                 $tokens->generatePartialCode($startLeft, $endLeft)
             );
 
-            $this->resolveToken($left, 0);
-            for ($i = $startLeft; $i <= $endLeft; ++$i) {
-                $tokens[$i]->clear();
+            $leftInsert = false;
+            if ( $this->isVariable($left, 0, count($left) -1)){
+                var_dump('LEFT:'.$left->generateCode());
+                $this->resolveToken($left, 0);
+                var_dump('AFTER:'.$left->generateCode());
+                var_dump('LOKE' . $tokens->generatePartialCode($startLeft-3, $endLeft+3));
+                for ($i = $startLeft; $i <= $endLeft; ++$i) {
+                    $tokens[$i]->clear();
+                }
+
+                $leftInsert = true;
+
             }
+
+
            // var_dump('LEFT:'.$left->generateCode());
             //right
             $startRight = $tokens->getNextNonWhitespace($boolIndex);
@@ -117,8 +128,9 @@ class ExplicitConditionFixer extends AbstractFixer
           //  var_dump('RIGHT:'.$right->generateCode());
 
             $tokens->insertAt($startRight, $right);
-            $tokens->insertAt($startLeft, $left);
-
+            if ( $leftInsert ){
+                $tokens->insertAt($startLeft, $left);
+            }
         }
     }
 
@@ -134,6 +146,119 @@ class ExplicitConditionFixer extends AbstractFixer
 
 
 
+    /**
+     * Checks whether the tokens between the given start and end describe a
+     * variable.
+     *
+     * @param Tokens $tokens The token list
+     * @param int    $start  The first index of the possible variable
+     * @param int    $end    The last index of the possible varaible
+     *
+     * @return bool Whether the tokens describe a variable
+     */
+    private function isVariable(Tokens $tokens, $start, $end)
+    {
+
+        if ($end === $start) {
+            return $tokens[$start]->isGivenKind(T_VARIABLE);
+        }
+
+        $index = $start;
+        $expectString = false;
+        while ($index <= $end) {
+
+            $current = $tokens[$index];
+            // check if this is the last token
+            if ($index === $end) {
+                return $current->isGivenKind($expectString ? T_STRING : T_VARIABLE);
+            }
+
+            $next = $tokens[$index + 1];
+            // self:: or ClassName::
+            if ($current->isGivenKind(T_STRING) && $next->isGivenKind(T_DOUBLE_COLON)) {
+                $index += 2;
+                continue;
+            }
+            // \ClassName
+            if ($current->isGivenKind(T_NS_SEPARATOR) && $next->isGivenKind(T_STRING)) {
+                ++$index;
+                continue;
+            }
+            // ClassName\
+            if ($current->isGivenKind(T_STRING) && $next->isGivenKind(T_NS_SEPARATOR)) {
+                $index += 2;
+                continue;
+            }
+            // $a-> or a-> (as in $b->a->c)
+            if ($current->isGivenKind($expectString ? T_STRING : T_VARIABLE) && $next->isGivenKind(T_OBJECT_OPERATOR)) {
+                $index += 2;
+                $expectString = true;
+                continue;
+            }
+            // {...} (as in $a->{$b})
+            if ($expectString && $current->isGivenKind(CT_DYNAMIC_PROP_BRACE_OPEN)) {
+                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_DYNAMIC_PROP_BRACE, $index);
+                if ($index === $end) {
+                    return true;
+                }
+                if ($index > $end) {
+                    return false;
+                }
+                ++$index;
+                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
+                    return false;
+                }
+                ++$index;
+                continue;
+            }
+            // $a[...] or a[...] (as in $c->a[$b])
+            if ($current->isGivenKind($expectString ? T_STRING : T_VARIABLE) && $next->equals('[')) {
+                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_SQUARE_BRACE, $index + 1);
+                if ($index === $end) {
+                    return true;
+                }
+                if ($index > $end) {
+                    return false;
+                }
+                ++$index;
+                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
+                    return false;
+                }
+                ++$index;
+                $expectString = true;
+                continue;
+            }
+
+            /** method($params) native call*/
+            if ($current->isGivenKind($expectString ? T_VARIABLE : T_STRING) && $next->equals('(')) {
+
+                if ( function_exists($tokens[$index]->getContent() )){ return true;}
+                $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $index +1);
+
+                if ($index === $end) {
+                    return true;
+                }
+
+                if ($index > $end) {
+                    return false;
+                }
+
+                ++$index;
+                if (!$tokens[$index]->isGivenKind(T_OBJECT_OPERATOR)) {
+                    return false;
+                }
+                ++$index;
+
+                $expectString = true;
+                continue;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
     private function resolveToken(Tokens $tokens, $index){
 
 
@@ -146,10 +271,10 @@ class ExplicitConditionFixer extends AbstractFixer
             )
         ) : $tokens;
 
-        if ( $blockTokens[0]->isGivenKind())
 
-        var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
-        var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd));
+
+ /*       var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
+        var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd));*/
 
 
 
@@ -166,15 +291,20 @@ class ExplicitConditionFixer extends AbstractFixer
                 $this->createPHPTokensEncodingFromCode($comparsionStrict)
             );
         } else {
-  //          var_dump( $blockTokens->generateCode());
+
+            //var_dump( $blockTokens->generateCode() . ' ' . strval($this->hasEqualOperator($blockTokens)));
 //var_dump($index, $currentOrNext );
-            if ( false === $this->hasEqualOperator($blockTokens) && count($tokensVarsCollections[T_VARIABLE]) == 1){
+            if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($tokens) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
 
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 $tokens->insertAt(
                     $currentOrNext,
                     $this->createPHPTokensEncodingFromCode($comparsionStrict)
                 );
+
+                var_dump($this->isVariable($blockTokens, 0, count($blockTokens) -1));
+                var_dump('FIXED ' .$blockTokens->generateCode(), "$currentOrNext : $blockEnd");
+
             }
 
 
