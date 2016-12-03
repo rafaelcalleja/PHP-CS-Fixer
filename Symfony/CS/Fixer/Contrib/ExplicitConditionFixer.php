@@ -33,6 +33,11 @@ class ExplicitConditionFixer extends AbstractFixer
      */
     private function fixCompositeComparison(Tokens $tokens, $index)
     {
+        list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
+
+        $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
+//        var_dump('fix hasta:'.  $currentComparison->generateCode());
+
         $firstNonSpace = $tokens->getNextMeaningfulToken($index); // Primer (
 
         if ( null !== $firstNonSpace ){
@@ -120,7 +125,7 @@ class ExplicitConditionFixer extends AbstractFixer
             for ($i = $startRight; $i <= $endRight; ++$i) {
                 $tokens[$i]->clear();
             }
-          //  var_dump('RIGHT:'.$right->generateCode());
+            //var_dump('RIGHT:'.$right->generateCode());
 
             $tokens->insertAt($startRight, $right);
             if ( $leftInsert ){
@@ -314,7 +319,7 @@ class ExplicitConditionFixer extends AbstractFixer
             list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
 
             $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
-
+//svar_dump('$currentComparison ' .$currentComparison->generateCode());
             if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 $tokens->insertAt(
@@ -326,7 +331,7 @@ class ExplicitConditionFixer extends AbstractFixer
 //                var_dump('FIXED ' .$blockTokens->generateCode(), "$currentOrNext : $blockEnd");
 
             }else{
-                if ($index < count($tokens)-2){
+                if ($index < $nextComparison-1){
                     $index++;
 
                     $continue = $tokens->getNextMeaningfulToken($index) ?: $index;
