@@ -40,7 +40,7 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     /**
      *  OK $cityInState = (isset($cities) && count($cities) && $cities->contains($city));
      *  NOT true == $request->query->get("continue")
-     *
+
      * @dataProvider provideExamples
      */
     public function testFixer($expected, $input = null)
@@ -50,24 +50,26 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
 
     public function provideExampless(){
         return array(
-            array(
-                '<?php
-if (true == $var && false == $c->m()) {
-    $b = true;
-    $a;
-}',
-                '<?php
-if ($var && !$c->m()) {
-    $b = true;
-    $a;
-}',
-            ),
+
+
         );
     }
 
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php if (true == $user->esStaff()||true == $a) { return; }',
+                '<?php if ($user->esStaff()||$a) { return; }',
+            ),
+            array(
+                '<?php if (true == $a ||true == $user->esStaff()) { return; }',
+                '<?php if ($a ||$user->esStaff()) { return; }',
+            ),
+            array(
+                '<?php if (true == $request->query->get("continue") && ($expiredTime > $today  || true == $user->esStaff())) { return; }',
+                '<?php if ($request->query->get("continue") && ($expiredTime > $today  || $user->esStaff())) { return; }',
+            ),
             array(
                 '<?php if (false === boolval($var)) { return; }',
                 '<?php if (!boolval($var)) { return; }',

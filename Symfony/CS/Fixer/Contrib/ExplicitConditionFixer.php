@@ -36,17 +36,19 @@ class ExplicitConditionFixer extends AbstractFixer
         list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
 
         $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
-//        var_dump('fix hasta:'.  $currentComparison->generateCode());
+       // var_dump('fix hasta:'.  $currentComparison->generateCode());
 
-        $firstNonSpace = $tokens->getNextMeaningfulToken($index); // Primer (
+        $firstNonSpace = $this->getNextMeaningfulToken($tokens, $index); // Primer (
 
         if ( null !== $firstNonSpace ){
+            //var_dump('resolveBlock ' . $tokens->generateCode());
             $this->resolveBlock($tokens, $index, $firstNonSpace);
         }
 
         if ( $firstNonSpace && $tokens->isUnaryPredecessorOperator($index) ){
             $firstNonSpace = $index;
         }
+        //var_dump('resolveToken ' . $tokens->generateCode());
         $this->resolveToken($tokens, $firstNonSpace ?: $index);
 
         return $index;
@@ -89,18 +91,21 @@ class ExplicitConditionFixer extends AbstractFixer
 
         $reverseIndexsOfToken = $this->getReverseKindTypes($tokens, [T_BOOLEAN_AND, T_BOOLEAN_OR,], $firstNonSpace, $blockEndIndex);
 
-        foreach($reverseIndexsOfToken as $boolIndex){
+        foreach($reverseIndexsOfToken as $boolIndex) {
 
             //left
-            $startLeft = $this->findComparisonStart($tokens, $boolIndex-1);
+            $startLeft = $this->findComparisonStart($tokens, $boolIndex - 1);
             $endLeft = $tokens->getPrevNonWhitespace($boolIndex);
 
             $left = $this->createPHPTokensEncodingFromCode(
                 $tokens->generatePartialCode($startLeft, $endLeft)
             );
 
+            $currentOrNextLeft = $left->getNextMeaningfulToken(0) ?: 0;
+
             $leftInsert = false;
-            if ( $this->isVariable($left, 0, count($left) -1)){
+            if ($this->isVariable($left, $currentOrNextLeft, count($left) - 1) && false === $this->hasBinaryOperator($left)) {
+
                 $this->resolveToken($left, 0);
                 for ($i = $startLeft; $i <= $endLeft; ++$i) {
                     $tokens[$i]->clear();
@@ -108,32 +113,63 @@ class ExplicitConditionFixer extends AbstractFixer
                 $leftInsert = true;
             }
 
+            //var_dump('LEFT:' . $left->generateCode());
 
-           // var_dump('LEFT:'.$left->generateCode());
+
             //right
+            list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $boolIndex);
             $startRight = $tokens->getNextNonWhitespace($boolIndex);
-            $endRight = $this->findComparisonEnd($tokens, $boolIndex+1);
+            //var_dump($tokens[$tempIndex]);
+            $endRight = $this->findComparisonEnd($tokens, $boolIndex + 1);
 
 
             $right = $this->createPHPTokensEncodingFromCode(
                 $tokens->generatePartialCode($startRight, $endRight)
             );
+           // var_dump('RIGHT:'.$right->generateCode());
+            if (false === empty($this->getReverseKindTypes($right, [T_BOOLEAN_AND, T_BOOLEAN_OR,], 0, count($right) - 1))) {
 
-            $this->fixCompositeComparison($right, 0);
+                $this->fixCompositeComparison($right, 0);
 
-            $this->resolveToken($right, 0);
-            for ($i = $startRight; $i <= $endRight; ++$i) {
-                $tokens[$i]->clear();
+            } else {
+            //
+
+            $rightnsert = false;
+
+            //if ( $this->isVariable($right, 0, count($right) -1) && false === $this->hasBinaryOperator($right)){
+
+                $this->resolveToken($right, 0);
+
+                for ($i = $startRight; $i <= $endRight; ++$i) {
+                    $tokens[$i]->clear();
+                }
+
+                $rightnsert = true;
+                $tokens->insertAt($startRight, $right);
+                //var_dump('RIGHT:'.$right->generateCode());
+            //}
             }
-            //var_dump('RIGHT:'.$right->generateCode());
 
-            $tokens->insertAt($startRight, $right);
+
+           // if($rightnsert)var_dump('RIGHT:'.$right->generateCode());
+
+
             if ( $leftInsert ){
                 $tokens->insertAt($startLeft, $left);
+
             }else{
+
               //  var_dump('WHEN NO'.$startLeft);
             }
         }
+    }
+
+    private function hasBinaryOperator(Tokens $tokens){
+
+        $index = 0;
+        return count(array_filter($tokens->toArray(), function($token) use($tokens, &$index) {
+            return $tokens->isBinaryOperator($index++);
+        })) > 0;
     }
 
     private function hasGivenType(Tokens $tokens,array $types, $start, $end){
@@ -317,11 +353,14 @@ class ExplicitConditionFixer extends AbstractFixer
             //var_dump( $blockTokens->generateCode() . ' ' . strval($this->hasEqualOperator($blockTokens)));
 //var_dump($index, $currentOrNext );
             list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
-
             $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
 //svar_dump('$currentComparison ' .$currentComparison->generateCode());
             if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
+                //var_dump('INSERT AT ' . (string) $currentOrNext . ' indexof ' .(string) $index. ' tempIndex ' .(string) $tempIndex);
+
+                if ($tokens[$currentOrNext]->isGivenKind(T_OBJECT_OPERATOR))$currentOrNext--;
+
                 $tokens->insertAt(
                     $currentOrNext,
                     $this->createPHPTokensEncodingFromCode($comparsionStrict)
@@ -358,6 +397,17 @@ class ExplicitConditionFixer extends AbstractFixer
         return $index;
 
 
+    }
+
+    private function getNextMeaningfulToken(Tokens $tokens, $index, $direction = 1)
+    {
+        if ( $this->isVariable($tokens, $index, count($tokens) - 1) ) return $index;
+
+        return $tokens->getTokenNotOfKindSibling(
+            $index,
+            $direction,
+            array(array(T_WHITESPACE), array(T_COMMENT), array(T_DOC_COMMENT))
+        );
     }
 
 
@@ -414,7 +464,7 @@ class ExplicitConditionFixer extends AbstractFixer
     private function isExclamation(Tokens $tokens, $index){
 
         if ( $tokens[$index]->equals('(')){
-            $index = $tokens->getNextMeaningfulToken($index);
+            $index = $this->getNextMeaningfulToken($tokens, $index);
         }
 
         return (
@@ -573,7 +623,6 @@ class ExplicitConditionFixer extends AbstractFixer
         while ($tempIndex >= 0) {
 
             if ($this->isTokenOfLowerPrecedence($tokens[$tempIndex])) {
-
                 break;
             }
             $tempIndex--;
@@ -588,6 +637,8 @@ class ExplicitConditionFixer extends AbstractFixer
             }
             $nextComparison++;
         }
+        $tempIndex = $tempIndex < 0 ? 0 : $tempIndex;
+        $nextComparison = $nextComparison > count($tokens) ? count($tokens) : $nextComparison;
 
         return array($tempIndex, $nextComparison);
     }
@@ -601,8 +652,27 @@ class ExplicitConditionFixer extends AbstractFixer
     private function creteTokensFromBounds(Tokens $tokens, $tempIndex, $nextComparison)
     {
         $currentComparison = $this->createPHPTokensEncodingFromCode(
-            $tokens->generatePartialCode($tempIndex + 1, $nextComparison - 1)
+            $tokens->generatePartialCode($tempIndex, $nextComparison)
         );
         return $currentComparison;
+    }
+
+    /**
+     * @param $blockTokens
+     */
+    private function isVariableOrMethodCall($blockTokens)
+    {
+        $methodCall = false;
+       /** @var Token $token */
+        if(count($blockTokens) > 1){
+            $token = $blockTokens[1];
+            $methodCall = $token->isGivenKind(T_OBJECT_OPERATOR);
+        }
+
+
+       return true === $this->isVariable($blockTokens, 0, count($blockTokens) - 1) ||
+            false === $this->isVariable($blockTokens, 0, count($blockTokens) - 1) &&
+            true === $methodCall
+           ;
     }
 }
