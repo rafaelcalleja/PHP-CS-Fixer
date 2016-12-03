@@ -38,6 +38,9 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
         ];
     }
     /**
+     *  OK $cityInState = (isset($cities) && count($cities) && $cities->contains($city));
+     *  NOT true == $request->query->get("continue")
+     *
      * @dataProvider provideExamples
      */
     public function testFixer($expected, $input = null)
@@ -48,8 +51,16 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php if (false == boolval($var)) { return; }',
-                '<?php if (!gettype($var)) { return; }',
+                '<?php
+if (true == $var && false == $c->m()) {
+    $b = true;
+    $a;
+}',
+                '<?php
+if ($var && !$c->m()) {
+    $b = true;
+    $a;
+}',
             ),
         );
     }
@@ -124,7 +135,18 @@ if ($a) else {
 }elseif (!$b||$a) {
 }elseif (isset($var)||!isset($var)) {
 }return;',
-            )
+            ),
+            array(
+                '<?php
+if (true == $var && false == $c->m()) {
+    $b = true;
+    $a;
+}',
+                '<?php
+if ($var && !$c->m()) {
+    $b = true;
+    $a;
+}')
         );
     }
 }
