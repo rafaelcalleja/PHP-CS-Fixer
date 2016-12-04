@@ -41,7 +41,7 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
      *  OK $cityInState = (isset($cities) && count($cities) && $cities->contains($city));
      *  NOT true == $request->query->get("continue")
 
-     * @dataProvider provideExamples
+     * @dataProvider provideExampless
      */
     public function testFixer($expected, $input = null)
     {
@@ -50,8 +50,9 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
 
     public function provideExampless(){
         return array(
-
-
+            array(
+                '<?php  if (null !== $includeFilesSince && null !== $startAt && $includeFilesSince > $startAt) { return ;}',
+            ),
         );
     }
 
@@ -59,12 +60,19 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     {
         return array(
             array(
-                '<?php if (true == $user->esStaff()||true == $a) { return; }',
-                '<?php if ($user->esStaff()||$a) { return; }',
+                '<?php if (preg_match($a, $b) == false || false == $c) { return ;}',
+                '<?php if (preg_match($a, $b) == false || !$c) { return ;}',
             ),
             array(
-                '<?php if (true == $a ||true == $user->esStaff()) { return; }',
-                '<?php if ($a ||$user->esStaff()) { return; }',
+                '<?php if (preg_match($a, $b) == false) { return ;}',
+            ),
+            array(
+                '<?php if (true == $u->e()||true == $a) { return; }',
+                '<?php if ($u->e()||$a) { return; }',
+            ),
+            array(
+                '<?php if (true == $a ||true == $u->e()) { return; }',
+                '<?php if ($a ||$u->e()) { return; }',
             ),
             array(
                 '<?php if (true == $request->query->get("continue") && ($expiredTime > $today  || true == $user->esStaff())) { return; }',
