@@ -51,7 +51,8 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php  if (null !== $a && null !== $b && $c > $d) { return ;}',
+                '<?php if (true == a::b($c, $d) || true == e::f($g, $h)) { return; }',
+                '<?php if (a::b($c, $d) || e::f($g, $h)) { return; }',
             ),
         );
     }
@@ -59,6 +60,21 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php if (true == a::b($c, $d) || true == e::f($g, $h)) { return; }',
+                '<?php if (a::b($c, $d) || e::f($g, $h)) { return; }',
+            ),
+            array(
+                '<?php if (true == a::b($c, $d)) { return; }',
+                '<?php if (a::b($c, $d)) { return; }',
+            ),
+            array(
+                '<?php if (false == a::b($c, $d)) { return; }',
+                '<?php if (!a::b($c, $d)) { return; }',
+            ),
+            array(
+                '<?php  if (null !== $a && null !== $b && $c > $d) { return ;}',
+            ),
             array(
                 '<?php if (preg_match($a, $b) == false || false == $c) { return ;}',
                 '<?php if (preg_match($a, $b) == false || !$c) { return ;}',
