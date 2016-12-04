@@ -8,6 +8,7 @@
  * with this source code in the file LICENSE.
  */
 namespace Symfony\CS\Fixer\Contrib;
+use Symfony\Component\Config\Definition\Exception\Exception;
 use Symfony\CS\AbstractFixer;
 use Symfony\CS\Tokenizer\Token;
 use Symfony\CS\Tokenizer\Tokens;
@@ -103,7 +104,13 @@ class ExplicitConditionFixer extends AbstractFixer
             $currentOrNextLeft = $left->getNextMeaningfulToken(0) ?: 0;
 
             $leftInsert = false;
-            if ($this->isVariable($left, $currentOrNextLeft, count($left) - 1) && false === $this->hasBinaryOperator($left)) {
+            if (
+                (
+                    $this->isVariable($left, $currentOrNextLeft, count($left) - 1) ||
+                    null !== $this->getIndexStaticMethodCall($left)
+
+                )
+                && false === $this->hasBinaryOperator($left)) {
 
                 $this->resolveToken($left, 0);
                 for ($i = $startLeft; $i <= $endLeft; ++$i) {
@@ -112,8 +119,8 @@ class ExplicitConditionFixer extends AbstractFixer
                 $leftInsert = true;
             }
 
-            //var_dump('LEFT:' . $left->generateCode());
 
+            //var_dump('LEFT:' . $left->generateCode());
 
             //right
             list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $boolIndex);
@@ -129,7 +136,6 @@ class ExplicitConditionFixer extends AbstractFixer
             if (false === empty($this->getReverseKindTypes($right, [T_BOOLEAN_AND, T_BOOLEAN_OR,], 0, count($right) - 1))) {
 
                 $this->fixCompositeComparison($right, 0);
-
             } else {
             //
 
@@ -308,10 +314,42 @@ class ExplicitConditionFixer extends AbstractFixer
         return strpos($name, 'is_') === 0 || in_array($name, $boolFunctions) ;
     }
 
+    //Return first index of first argument of an static call "classname::method(__INDEX__"
+    //OR return null
+    private function getIndexStaticMethodCall(Tokens $tokens, $start = false, $end = false){
 
+        if ($start === false){
+            $start = 0;
+        }
+
+        if ($end === false){
+            $end = count($tokens) - 1;
+        }
+
+        $seq = array(
+            [T_STRING],
+            [T_DOUBLE_COLON],
+            [T_STRING],
+            '(',
+        );
+
+        $resolved = $tokens->findSequence($seq, $start, $end);
+
+        if ( null === $resolved){
+            return null;
+        }
+
+        if ( count($resolved) !== 4 ){
+            //throw new Exception('Solo se esperaba un unico método estatico');
+        }
+
+        $keysIndexs = array_keys($resolved);
+
+        return end($keysIndexs);
+
+
+    }
     private function resolveToken(Tokens $tokens, $index){
-
-
         $currentOrNext = $tokens->getNextMeaningfulToken($index) ?: $index;
         $blockEnd = $this->findComparisonEnd($tokens, $currentOrNext);
 
@@ -321,9 +359,9 @@ class ExplicitConditionFixer extends AbstractFixer
             )
         ) : $tokens;
 
+        //var_dump($blockTokens->generateCode());
         if ( $this->hasEqualOperator($blockTokens) || $this->hasBinaryOperator($blockTokens)) return $index;
 
-        
 
         /*var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
         var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd),
@@ -333,11 +371,24 @@ class ExplicitConditionFixer extends AbstractFixer
         $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);*/
        // var_dump('CURRENT '.$blockTokens->generateCode(),false === $this->hasEqualOperator($currentComparison) );
        // var_dump($tokens[$this->isExclamation($tokens, $index)+1]->isGivenKind([T_STRING]));
-
-
+        $exclamationIndex = $this->isExclamation($tokens, $index);
+        /*$seq = array(
+            [T_STRING],
+            [T_DOUBLE_COLON],
+            [T_STRING],
+            '(',
+        );
+        var_dump(
+            ///$this->isVariable($blockTokens, 0, count($blockTokens) -1),
+            $blockTokens->generatePartialCode(0, count($blockTokens) -1),
+            $blockTokens->findSequence($seq, 0, count($blockTokens) -1),
+            $this->getIndexStaticMethodCall($blockTokens)
+        );*/
         if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) &&
             (
+
                 false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING]) ||
+                null !== $this->getIndexStaticMethodCall($blockTokens) ||
                 ( true == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING]) && $tokens[$exclamationIndex+2]->equals('('))
             )
         ){
@@ -362,7 +413,7 @@ class ExplicitConditionFixer extends AbstractFixer
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 //var_dump('INSERT AT ' . (string) $currentOrNext . ' indexof ' .(string) $index. ' tempIndex ' .(string) $tempIndex);
 
-                if ($tokens[$currentOrNext]->isGivenKind(T_OBJECT_OPERATOR))$currentOrNext--;
+                if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON]))$currentOrNext--;
 
                 $tokens->insertAt(
                     $currentOrNext,
