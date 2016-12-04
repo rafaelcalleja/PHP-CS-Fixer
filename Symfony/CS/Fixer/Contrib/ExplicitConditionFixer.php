@@ -33,9 +33,6 @@ class ExplicitConditionFixer extends AbstractFixer
      */
     private function fixCompositeComparison(Tokens $tokens, $index)
     {
-        list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
-
-        $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
        // var_dump('fix hasta:'.  $currentComparison->generateCode());
 
         $firstNonSpace = $this->getNextMeaningfulToken($tokens, $index); // Primer (
@@ -48,6 +45,7 @@ class ExplicitConditionFixer extends AbstractFixer
         if ( $firstNonSpace && $tokens->isUnaryPredecessorOperator($index) ){
             $firstNonSpace = $index;
         }
+
         //var_dump('resolveToken ' . $tokens->generateCode());
         $this->resolveToken($tokens, $firstNonSpace ?: $index);
 
@@ -85,6 +83,7 @@ class ExplicitConditionFixer extends AbstractFixer
         }
 
         $ifContent = $tokens->generatePartialCode($firstNonSpace, $blockEndIndex); //string contenido del if
+
 
         $tokensContent = $this->createPHPTokensEncodingFromCode($ifContent);
         $tokensContent->clearEmptyTokens();
@@ -126,7 +125,7 @@ class ExplicitConditionFixer extends AbstractFixer
             $right = $this->createPHPTokensEncodingFromCode(
                 $tokens->generatePartialCode($startRight, $endRight)
             );
-           // var_dump('RIGHT:'.$right->generateCode());
+            //var_dump('RIGHT:'.$right->generateCode());
             if (false === empty($this->getReverseKindTypes($right, [T_BOOLEAN_AND, T_BOOLEAN_OR,], 0, count($right) - 1))) {
 
                 $this->fixCompositeComparison($right, 0);
@@ -322,15 +321,17 @@ class ExplicitConditionFixer extends AbstractFixer
             )
         ) : $tokens;
 
-
+        if ( $this->hasEqualOperator($blockTokens)) return $index;
 
         /*var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
         var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd),
             $blockTokens->generateCode(),
             $this->isVariable($blockTokens, 0, count($blockTokens) -1));*/
-
-        //var_dump($currentComparison->generateCode());
+        /*list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
+        $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);*/
+       // var_dump('CURRENT '.$blockTokens->generateCode(),false === $this->hasEqualOperator($currentComparison) );
        // var_dump($tokens[$this->isExclamation($tokens, $index)+1]->isGivenKind([T_STRING]));
+
 
         if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) &&
             (
@@ -354,7 +355,7 @@ class ExplicitConditionFixer extends AbstractFixer
 //var_dump($index, $currentOrNext );
             list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
             $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
-//svar_dump('$currentComparison ' .$currentComparison->generateCode());
+//var_dump('$currentComparison ' .$currentComparison->generateCode());
             if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 //var_dump('INSERT AT ' . (string) $currentOrNext . ' indexof ' .(string) $index. ' tempIndex ' .(string) $tempIndex);
@@ -366,7 +367,6 @@ class ExplicitConditionFixer extends AbstractFixer
                     $this->createPHPTokensEncodingFromCode($comparsionStrict)
                 );
 
-               // var_dump($this->isVariable($blockTokens, 0, count($blockTokens) -1));
 //                var_dump('FIXED ' .$blockTokens->generateCode(), "$currentOrNext : $blockEnd");
 
             }else{
@@ -381,6 +381,7 @@ class ExplicitConditionFixer extends AbstractFixer
                             $blockEnd
                         )
                     ) : $tokens;
+                    //var_dump($tokens->generateCode());
 
                     goto recheck;
                 }
@@ -475,7 +476,6 @@ class ExplicitConditionFixer extends AbstractFixer
 
     private function fixTokens(Tokens $tokens)
     {
-
         $comparisons = $this->getReverseKindTypes($tokens,[T_IF, T_ELSEIF], 0, count($tokens) -1);
 
         $lastFixedIndex = count($tokens);
@@ -638,7 +638,7 @@ class ExplicitConditionFixer extends AbstractFixer
             $nextComparison++;
         }
         $tempIndex = $tempIndex < 0 ? 0 : $tempIndex;
-        $nextComparison = $nextComparison > count($tokens) ? count($tokens) : $nextComparison;
+        $nextComparison = $nextComparison >= count($tokens) ? count($tokens) - 1 : $nextComparison;
 
         return array($tempIndex, $nextComparison);
     }
@@ -651,9 +651,13 @@ class ExplicitConditionFixer extends AbstractFixer
      */
     private function creteTokensFromBounds(Tokens $tokens, $tempIndex, $nextComparison)
     {
+        $theTokens = clone $tokens;
+        //var_dump($tempIndex, $nextComparison);
+
         $currentComparison = $this->createPHPTokensEncodingFromCode(
-            $tokens->generatePartialCode($tempIndex, $nextComparison)
+            $theTokens->generatePartialCode($tempIndex, $nextComparison)
         );
+
         return $currentComparison;
     }
 
