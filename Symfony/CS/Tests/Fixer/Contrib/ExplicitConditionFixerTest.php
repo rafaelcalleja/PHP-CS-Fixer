@@ -41,7 +41,7 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
      *  OK $cityInState = (isset($cities) && count($cities) && $cities->contains($city));
      *  NOT true == $request->query->get("continue")
 
-     * @dataProvider provideExampless
+     * @dataProvider provideExamples
      */
     public function testFixer($expected, $input = null)
     {
@@ -51,7 +51,7 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php  if (null !== $includeFilesSince && null !== $startAt && $includeFilesSince > $startAt) { return ;}',
+                '<?php  if (null !== $a && null !== $b && $c > $d) { return ;}',
             ),
         );
     }

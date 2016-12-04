@@ -321,7 +321,9 @@ class ExplicitConditionFixer extends AbstractFixer
             )
         ) : $tokens;
 
-        if ( $this->hasEqualOperator($blockTokens)) return $index;
+        if ( $this->hasEqualOperator($blockTokens) || $this->hasBinaryOperator($blockTokens)) return $index;
+
+        
 
         /*var_dump('NOMRLA:'. $tokens->generatePartialCode($index, $blockEnd));
         var_dump('next:'. $tokens->generatePartialCode($currentOrNext, $blockEnd),
