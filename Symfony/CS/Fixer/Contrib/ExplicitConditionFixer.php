@@ -34,21 +34,8 @@ class ExplicitConditionFixer extends AbstractFixer
      */
     private function fixCompositeComparison(Tokens $tokens, $index)
     {
-       // var_dump('fix hasta:'.  $currentComparison->generateCode());
-
-        $firstNonSpace = $this->getNextMeaningfulToken($tokens, $index); // Primer (
-
-        if ( null !== $firstNonSpace ){
-            //var_dump('resolveBlock ' . $tokens->generateCode());
-            $this->resolveBlock($tokens, $index, $firstNonSpace);
-        }
-
-        if ( $firstNonSpace && $tokens->isUnaryPredecessorOperator($index) ){
-            $firstNonSpace = $index;
-        }
-
-        //var_dump('resolveToken ' . $tokens->generateCode());
-        $this->resolveToken($tokens, $firstNonSpace ?: $index);
+        $this->resolveBlock($tokens, $index, $index);
+        $this->resolveToken($tokens, $index);
 
         return $index;
     }
@@ -68,12 +55,12 @@ class ExplicitConditionFixer extends AbstractFixer
         return array_reverse($ret);
     }
 
-    private function resolveBlock(Tokens $tokens, $index, $firstNonSpace){
+    private function resolveBlock(Tokens $tokens, $index){
 
-        $blockType = $tokens->detectBlockType($tokens[$firstNonSpace]);
+        $blockType = $tokens->detectBlockType($tokens[$index]);
 
         if( $blockType ){
-            $blockEndIndex = $tokens->findBlockEnd($blockType['type'], $firstNonSpace);
+            $blockEndIndex = $tokens->findBlockEnd($blockType['type'], $index);
         }else{
             if (false === $tokens[$index]->equals('(')){
                 return null;
@@ -83,13 +70,13 @@ class ExplicitConditionFixer extends AbstractFixer
 
         }
 
-        $ifContent = $tokens->generatePartialCode($firstNonSpace, $blockEndIndex); //string contenido del if
+        $ifContent = $tokens->generatePartialCode($index, $blockEndIndex); //string contenido del if
 
 
         $tokensContent = $this->createPHPTokensEncodingFromCode($ifContent);
         $tokensContent->clearEmptyTokens();
 
-        $reverseIndexsOfToken = $this->getReverseKindTypes($tokens, [T_BOOLEAN_AND, T_BOOLEAN_OR,], $firstNonSpace, $blockEndIndex);
+        $reverseIndexsOfToken = $this->getReverseKindTypes($tokens, [T_BOOLEAN_AND, T_BOOLEAN_OR,], $index, $blockEndIndex);
 
         foreach($reverseIndexsOfToken as $boolIndex) {
 
@@ -296,7 +283,7 @@ class ExplicitConditionFixer extends AbstractFixer
                 continue;
             }
 
-            if( null !== $this->getIndexInstanceOf($tokens, $index)) {
+            if( null !== $this->getIndexInstanceOf($tokens, $index, $end)) {
                 return true;
             }
 
@@ -404,7 +391,7 @@ class ExplicitConditionFixer extends AbstractFixer
         $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);*/
        // var_dump('CURRENT '.$blockTokens->generateCode(),false === $this->hasEqualOperator($currentComparison) );
        // var_dump($tokens[$this->isExclamation($tokens, $index)+1]->isGivenKind([T_STRING]));
-        $exclamationIndex = $this->isExclamation($tokens, $index);
+       // $exclamationIndex = $this->isExclamation($tokens, $index);
         /*$seq = array(
             [T_STRING],
             [T_DOUBLE_COLON],
@@ -450,8 +437,12 @@ class ExplicitConditionFixer extends AbstractFixer
                 $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
                 if ( null !== $this->getIndexInstanceOf($blockTokens) ){
                     $comparsionStrict = 'true === ';
-                    $currentOrNext++;
                 }
+                if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON])){
+                    $currentOrNext--;
+                }
+
+
                 //var_dump('INSERT AT ' . (string) $currentOrNext . ' indexof ' .(string) $index. ' tempIndex ' .(string) $tempIndex);
 
                 if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON])){
@@ -582,7 +573,7 @@ class ExplicitConditionFixer extends AbstractFixer
             if ($index >= $lastFixedIndex) {
                 continue;
             }
-
+            $index = $tokens->getNextMeaningfulToken($index) ?: $index;
             $lastFixedIndex = $this->fixCompositeComparison($tokens, $index);
         }
     }
