@@ -51,8 +51,8 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php if (true == a::b($c, $d) || true == e::f($g, $h)) { return; }',
-                '<?php if (a::b($c, $d) || e::f($g, $h)) { return; }',
+                '<?php if (true === $a instanceof a) { return; }',
+                '<?php if ($a instanceof a) { return; }',
             ),
         );
     }
@@ -60,6 +60,10 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php if (true === $a instanceof a) { return; }',
+                '<?php if ($a instanceof a) { return; }',
+            ),
             array(
                 '<?php if (true == a::b($c, $d) || true == e::f($g, $h)) { return; }',
                 '<?php if (a::b($c, $d) || e::f($g, $h)) { return; }',
