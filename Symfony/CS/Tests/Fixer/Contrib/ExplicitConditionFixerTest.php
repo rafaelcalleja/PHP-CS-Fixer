@@ -51,8 +51,8 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php if (true === $a instanceof a) { return; }',
-                '<?php if ($a instanceof a) { return; }',
+                '<?php if (preg_match($a, $b) == false || false == $c) { return ;}',
+                '<?php if (preg_match($a, $b) == false || !$c) { return ;}',
             ),
         );
     }
