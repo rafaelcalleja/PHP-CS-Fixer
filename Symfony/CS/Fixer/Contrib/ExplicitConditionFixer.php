@@ -34,7 +34,7 @@ class ExplicitConditionFixer extends AbstractFixer
      */
     private function fixCompositeComparison(Tokens $tokens, $index)
     {
-        $this->resolveBlock($tokens, $index, $index);
+        $this->resolveBlock($tokens, $index);
         $this->resolveToken($tokens, $index);
 
         return $index;
@@ -371,6 +371,11 @@ class ExplicitConditionFixer extends AbstractFixer
     }
     private function resolveToken(Tokens $tokens, $index){
         $currentOrNext = $tokens->getNextMeaningfulToken($index) ?: $index;
+
+        if ($tokens[$index]->equals('!')){
+            $currentOrNext = $index;
+        }
+
         $blockEnd = $this->findComparisonEnd($tokens, $currentOrNext);
 
         $blockTokens = ($blockEnd > 0) ? $this->createPHPTokensEncodingFromCode(
@@ -404,83 +409,73 @@ class ExplicitConditionFixer extends AbstractFixer
             $blockTokens->findSequence($seq, 0, count($blockTokens) -1),
             $this->getIndexStaticMethodCall($blockTokens)
         );*/
-        if (false !== ($exclamationIndex = $this->isExclamation($tokens, $index)) &&
-            (
 
-                false == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING]) ||
-                null !== $this->getIndexStaticMethodCall($blockTokens) ||
-                ( true == $tokens[$exclamationIndex+1]->isGivenKind([T_STRING]) && $tokens[$exclamationIndex+2]->equals('('))
-            )
-        ){
-            $currentOrNext = $tokens->getNextMeaningfulToken($exclamationIndex) ?: $exclamationIndex;
 
-            $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'false === ' : 'false == ';
-            if ( null !== $this->getIndexInstanceOf($blockTokens) ){
-                $comparsionStrict = 'false === ';
+        recheck:
+
+        //var_dump( $blockTokens->generateCode() . ' ' . strval($this->hasEqualOperator($blockTokens)));
+//var_dump($index, $currentOrNext );
+        list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
+        $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
+//var_dump('$currentComparison ' .$currentComparison->generateCode());
+        if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
+            //var_dump('INSERT AT ' . (string) $currentOrNext . ' indexof ' .(string) $index. ' tempIndex ' .(string) $tempIndex);
+            $booleanComparator = 'true';
+            //var_dump($tokens[$currentOrNext],$tokens->generatePartialCode($currentOrNext, $blockEnd));
+            if ($tokens[$currentOrNext]->equals('!')){
+                $booleanComparator = 'false';
+                $tokens[$currentOrNext]->clear();
+                $tokens->clearEmptyTokens();
             }
 
-            $tokens[$exclamationIndex]->clear();
+
+
+            if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON])){
+                $currentOrNext--;
+            }
+
+            $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? ' === ' : ' == ';
+
+            if ( null !== $this->getIndexInstanceOf($blockTokens) ){
+                $comparsionStrict = ' === ';
+            }
+
+            if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON])){
+                $currentOrNext--;
+            }
+
             $tokens->insertAt(
-                $exclamationIndex,
-                $this->createPHPTokensEncodingFromCode($comparsionStrict)
+                $currentOrNext,
+                $this->createPHPTokensEncodingFromCode($booleanComparator.$comparsionStrict)
             );
-        } else {
-
-            recheck:
-
-            //var_dump( $blockTokens->generateCode() . ' ' . strval($this->hasEqualOperator($blockTokens)));
-//var_dump($index, $currentOrNext );
-            list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
-            $currentComparison = $this->creteTokensFromBounds($tokens, $tempIndex, $nextComparison);
-//var_dump('$currentComparison ' .$currentComparison->generateCode());
-            if (false === $this->hasEqualOperator($blockTokens) && false === $this->hasEqualOperator($currentComparison) && $this->isVariable($blockTokens, 0, count($blockTokens) -1)){
-                $comparsionStrict = $this->isStrictComparsion($tokens[$currentOrNext]) ? 'true === ' : 'true == ';
-                if ( null !== $this->getIndexInstanceOf($blockTokens) ){
-                    $comparsionStrict = 'true === ';
-                }
-                if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON])){
-                    $currentOrNext--;
-                }
-
-
-                //var_dump('INSERT AT ' . (string) $currentOrNext . ' indexof ' .(string) $index. ' tempIndex ' .(string) $tempIndex);
-
-                if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON])){
-                    $currentOrNext--;
-                }
-
-                $tokens->insertAt(
-                    $currentOrNext,
-                    $this->createPHPTokensEncodingFromCode($comparsionStrict)
-                );
 
 //                var_dump('FIXED ' .$blockTokens->generateCode(), "$currentOrNext : $blockEnd");
 
-            }else{
-                if ($index < $nextComparison-1){
-                    $index++;
+        }else{
+            if ($index < $nextComparison-1){
+                $index++;
 
-                    $continue = $tokens->getNextMeaningfulToken($index) ?: $index;
-                    $blockEnd = $this->findComparisonEnd($tokens, $continue);
+                $continue = $tokens->getNextMeaningfulToken($index) ?: $index;
+                $blockEnd = $this->findComparisonEnd($tokens, $continue);
 
-                    $blockTokens = ($blockEnd > 0) ? $this->createPHPTokensEncodingFromCode(
-                        $tokens->generatePartialCode($tokens->getNextMeaningfulToken($index),
-                            $blockEnd
-                        )
-                    ) : $tokens;
-                    //var_dump($tokens->generateCode());
+                $blockTokens = ($blockEnd > 0) ? $this->createPHPTokensEncodingFromCode(
+                    $tokens->generatePartialCode($tokens->getNextMeaningfulToken($index),
+                        $blockEnd
+                    )
+                ) : $tokens;
+                //var_dump($tokens->generateCode());
 
-                    goto recheck;
-                }
-
-
-
-
-              //  var_dump($blockTokens->generateCode(), $this->isVariable($blockTokens, 0, count($blockTokens) -1));
+                goto recheck;
             }
 
 
+
+
+          //  var_dump($blockTokens->generateCode(), $this->isVariable($blockTokens, 0, count($blockTokens) -1));
         }
+
+
+
 
         return $index;
 
