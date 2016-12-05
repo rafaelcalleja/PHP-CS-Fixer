@@ -443,6 +443,14 @@ class ExplicitConditionFixer extends AbstractFixer
             if ($tokens[$currentOrNext]->isGivenKind([T_OBJECT_OPERATOR, T_DOUBLE_COLON])){
                 $currentOrNext--;
             }
+            list($tempIndex, $nextComparison) = $this->boundIndex($tokens, $index);
+
+
+            $block = $tokens->detectBlockType($tokens[$currentOrNext]);
+            if( $block !== null ){
+                $currentOrNext = $tokens->getPrevMeaningfulToken($index);
+                //var_dump($tokens[$prev]->getContent() , $tokens[$currentOrNext]->getContent(), $tokens->generatePartialCode($tempIndex, $nextComparison));
+            }
 
             $tokens->insertAt(
                 $currentOrNext,
@@ -653,26 +661,7 @@ class ExplicitConditionFixer extends AbstractFixer
     {
         static $tokens;
         if (null === $tokens) {
-            $tokens = array(
-                // '&&', '||',
-                T_BOOLEAN_AND, T_BOOLEAN_OR,
-                // '.=', '/=', '-=', '%=', '*=', '+=',
-                T_CONCAT_EQUAL, T_DIV_EQUAL, T_MINUS_EQUAL, T_MUL_EQUAL, T_PLUS_EQUAL,
-                // '&=', '|=', '^=',
-                T_AND_EQUAL, T_OR_EQUAL, T_XOR_EQUAL,
-                // '<<=', '>>=', '=>',
-                T_SL_EQUAL, T_SR_EQUAL, T_DOUBLE_ARROW,
-                // 'and', 'or', 'xor',
-                T_LOGICAL_AND, T_LOGICAL_OR, T_LOGICAL_XOR,
-                // keywords like 'return'
-                T_RETURN, T_THROW, T_GOTO, T_CASE,
-                // if elseif
-                T_IF, T_ELSEIF,
-            );
-            // PHP 5.6 introduced **=
-            if (defined('T_POW_EQUAL')) {
-                $tokens[] = constant('T_POW_EQUAL');
-            }
+            $tokens = $this->getTokenOfLowerPrecedence();
         }
         static $otherTokens = array(
             // bitwise and, or, xor
@@ -761,5 +750,34 @@ class ExplicitConditionFixer extends AbstractFixer
             false === $this->isVariable($blockTokens, 0, count($blockTokens) - 1) &&
             true === $methodCall
            ;
+    }
+
+    /**
+     * @return array
+     */
+    private function getTokenOfLowerPrecedence()
+    {
+        $tokens = array(
+            // '&&', '||',
+            T_BOOLEAN_AND, T_BOOLEAN_OR,
+            // '.=', '/=', '-=', '%=', '*=', '+=',
+            T_CONCAT_EQUAL, T_DIV_EQUAL, T_MINUS_EQUAL, T_MUL_EQUAL, T_PLUS_EQUAL,
+            // '&=', '|=', '^=',
+            T_AND_EQUAL, T_OR_EQUAL, T_XOR_EQUAL,
+            // '<<=', '>>=', '=>',
+            T_SL_EQUAL, T_SR_EQUAL, T_DOUBLE_ARROW,
+            // 'and', 'or', 'xor',
+            T_LOGICAL_AND, T_LOGICAL_OR, T_LOGICAL_XOR,
+            // keywords like 'return'
+            T_RETURN, T_THROW, T_GOTO, T_CASE,
+            // if elseif
+            T_IF, T_ELSEIF,
+        );
+        // PHP 5.6 introduced **=
+        if (defined('T_POW_EQUAL')) {
+            $tokens[] = constant('T_POW_EQUAL');
+            return $tokens;
+        }
+        return $tokens;
     }
 }
