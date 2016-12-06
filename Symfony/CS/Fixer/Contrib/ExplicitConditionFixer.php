@@ -671,7 +671,6 @@ class ExplicitConditionFixer extends AbstractFixer
     private function creteTokensFromBounds(Tokens $tokens, $tempIndex, $nextComparison)
     {
         $theTokens = clone $tokens;
-        //var_dump($tempIndex, $nextComparison);
 
         $currentComparison = $this->createPHPTokensEncodingFromCode(
             $theTokens->generatePartialCode($tempIndex, $nextComparison)
