@@ -43,6 +43,28 @@ class ExplicitConditionFixer extends AbstractFixer
      * @param Tokens $tokens
      * @return array
      */
+    private function getEqualsTypes(Tokens $tokens,array $type, $start, $end)
+    {
+        $ret = [];
+        $index = $start;
+
+        while ($index <= $end){
+            foreach ($type as $key) {
+                $ret[] = $tokens->getTokenOfKindSibling($index, +1, [$key]);
+            }
+            $index++;
+        }
+
+        $ret = array_unique(array_filter($ret));
+        sort($ret);
+
+        return array_reverse($ret);
+    }
+
+    /**
+     * @param Tokens $tokens
+     * @return array
+     */
     private function getReverseKindTypes(Tokens $tokens, $type, $start, $end){
         $comparisons = $tokens->findGivenKind($type, $start, $end);
         $ret = [];
@@ -523,11 +545,14 @@ class ExplicitConditionFixer extends AbstractFixer
     private function fixTokens(Tokens $tokens)
     {
         $comparisons = $this->getReverseKindTypes($tokens,[T_IF, T_ELSEIF], 0, count($tokens) -1);
+        $otherComparisons = $this->getEqualsTypes($tokens,['='], 0, count($tokens) -1);
+
+        $comparisons = $comparisons + $otherComparisons;
+        sort($comparisons);
 
         $lastFixedIndex = count($tokens);
 
-
-        foreach ($comparisons as $index) {
+        foreach (array_reverse($comparisons) as $index) {
             if ($index >= $lastFixedIndex) {
                 continue;
             }

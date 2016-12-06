@@ -37,10 +37,8 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
             ['gettype', false],
         ];
     }
-    /**
-     *  OK $cityInState = (isset($cities) && count($cities) && $cities->contains($city));
-     *  NOT true == $request->query->get("continue")
 
+    /**
      * @dataProvider provideExamples
      */
     public function testFixer($expected, $input = null)
@@ -51,12 +49,8 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExampless(){
         return array(
             array(
-                '<?php
-if (true == count($chains) && true == count($chains2)) { return ;}
-} elseif (false == count($chains)) {',
-                '<?php
-if (count($chains) && count($chains2)) { return ;}
-} elseif (!count($chains)) {',
+                '<?php $a = (true === isset($b) && true == count($c) && true == $d->c($f));',
+                '<?php $a = (isset($b) && count($c) && $d->c($f));'
             ),
         );
     }
@@ -64,6 +58,10 @@ if (count($chains) && count($chains2)) { return ;}
     public function provideExamples()
     {
         return array(
+            array(
+                '<?php $a = (true === isset($b) && true == count($c) && true == $d->c($f));',
+                '<?php $a = (isset($b) && count($c) && $d->c($f));'
+            ),
             array(
                 '<?php if (true === $a instanceof a) { return; }',
                 '<?php if ($a instanceof a) { return; }',
