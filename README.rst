@@ -504,6 +504,9 @@ Choose from the list of available fixers:
    Replace deprecated ereg regular expression functions with preg. Warning!
    This could change code behavior.
 
+* **explicit_condition** [contrib]
+   Enforce explicit conditional on expressions.
+
 * **header_comment** [contrib]
    Add, replace or remove header comment.
 
