@@ -163,11 +163,15 @@ if (!$a) else {
 if (true == $a) else {
 }elseif (false == $b||true == $a) {
 }elseif (true === isset($var)||false === isset($var)) {
+}elseif (false == $a->B()->C($d)) { return;}
+}elseif (true === $c instanceof d) { return; }
 }return;',
                 '<?php 
 if ($a) else {
 }elseif (!$b||$a) {
 }elseif (isset($var)||!isset($var)) {
+}elseif (!$a->B()->C($d)) { return;}
+}elseif ($c instanceof d) { return; }
 }return;',
             ),
             array(
@@ -183,11 +187,11 @@ if ($var && !$c->m()) {
 }'),
             array(
                 '<?php
-if (true == count($chains) && true == count($chains2)) { return ;}
-} elseif (false == count($chains)) {',
+if (true == count($a) && true == count($b)) { return ;}
+} elseif (false == count($c)) {',
                 '<?php
-if (count($chains) && count($chains2)) { return ;}
-} elseif (!count($chains)) {',
+if (count($a) && count($b)) { return ;}
+} elseif (!count($c)) {',
             ),
 
         );
