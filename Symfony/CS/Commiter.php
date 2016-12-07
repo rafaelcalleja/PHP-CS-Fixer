@@ -13,14 +13,8 @@
 namespace Symfony\CS;
 
 use GitWrapper\GitWorkingCopy;
-use GitWrapper\GitWrapper;
-use PHPGit\Git;
 use SebastianBergmann\Diff\Differ;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Finder\Finder as SymfonyFinder;
-use Symfony\Component\Finder\SplFileInfo as SymfonySplFileInfo;
-use Symfony\Component\Stopwatch\Stopwatch;
-use Symfony\CS\Tokenizer\Tokens;
 
 /**
  * @author Fabien Potencier <fabien@symfony.com>
@@ -69,6 +63,18 @@ class Commiter
         }
     }
 
+    public function precheckFile(FixerFileProcessedEvent $event)
+    {
+        if ($event->getStatus() !== FixerFileProcessedEvent::STATUS_START){
+            return false;
+        }
+
+        $file = $event->getFileInfo()['filename'];
+        if (false === empty((string) $this->git->diff($file))) {
+            throw new \RuntimeException(sprintf("The file %s has changed uncommited, stash or commit them", $file));
+        }
+    }
+
     public function commitFix(FixerFileProcessedEvent $event)
     {
         if ($event->getStatus() !== FixerFileProcessedEvent::STATUS_FIXED ){
@@ -78,14 +84,8 @@ class Commiter
         $commitMessage = 'apply ' .str_replace('_', ' ',$event->getFileInfo()['appliedFixers'][0]);
         $file = $event->getFileInfo()['filename'];
 
-
         $this->git->add($file);
-        die(var_dump($this->git->getOutput()));
-/*
-        if ( $this->force ){
-            $this->git->add($file);
-            $this->git->commit($commitMessage);
-        }*/
+        $this->git->commit($commitMessage);
     }
 
     /**
@@ -94,6 +94,7 @@ class Commiter
     private function setEventDispatcher(EventDispatcher $eventDispatcher)
     {
         $this->eventDispatcher = $eventDispatcher;
+        $this->eventDispatcher->addListener(FixerFileProcessedEvent::NAME, [$this, 'precheckFile']);
         $this->eventDispatcher->addListener(FixerFileProcessedEvent::NAME, [$this, 'commitFix']);
     }
 }
