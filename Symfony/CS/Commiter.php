@@ -77,13 +77,14 @@ class Commiter
 
     public function commitFix(FixerFileProcessedEvent $event)
     {
-        if ($event->getStatus() !== FixerFileProcessedEvent::STATUS_FIXED ){
+        if ($event->getStatus() !== FixerFileProcessedEvent::STATUS_APPLY ){
             return false;
         }
 
-        $commitMessage = 'apply ' .str_replace('_', ' ',$event->getFileInfo()['appliedFixers'][0]);
+        $commitMessage = 'apply ' .str_replace('_', ' ', $event->getFileInfo()['appliedFixers']);
         $file = $event->getFileInfo()['filename'];
-
+        $content =$event->getFileInfo()['content'];
+        file_put_contents($event->getFileInfo()['realpath'], $content);
         $this->git->add($file);
         $this->git->commit($commitMessage);
     }

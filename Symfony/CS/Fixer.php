@@ -219,8 +219,21 @@ class Fixer
                 }
 
                 $newest = $fixer->fix($file, $new);
+
                 if ($newest !== $new) {
                     $appliedFixers[] = $fixer->getName();
+
+                    $this->eventDispatcher->dispatch(
+                        FixerFileProcessedEvent::NAME,
+                        FixerFileProcessedEvent::create()->setStatus(FixerFileProcessedEvent::STATUS_APPLY,
+                            [
+                                'appliedFixers' => $fixer->getName(),
+                                'content' => $newest,
+                                'realpath' => $file->getRealPath(),
+                                'filename' => $this->getFileRelativePathname($file)
+                            ]
+                        )
+                    );
                 }
                 $new = $newest;
             }
