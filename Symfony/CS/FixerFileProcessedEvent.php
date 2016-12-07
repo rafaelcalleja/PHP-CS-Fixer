@@ -34,6 +34,7 @@ class FixerFileProcessedEvent extends Event
     const STATUS_EXCEPTION = 5;
     const STATUS_LINT = 6;
     const STATUS_START = 7;
+    const STATUS_APPLY = 8;
 
     /**
      * File statuses map.
@@ -49,6 +50,7 @@ class FixerFileProcessedEvent extends Event
         self::STATUS_EXCEPTION => array('symbol' => 'E', 'description' => 'error'),
         self::STATUS_LINT => array('symbol' => 'E', 'description' => 'error'),
         self::STATUS_START => array('symbol' => '', 'description' => ''),
+        self::STATUS_APPLY => array('symbol' => '', 'description' => ''),
     );
 
     /**
