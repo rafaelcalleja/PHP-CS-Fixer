@@ -595,7 +595,7 @@ EOF
             $stdErr->writeln('Files that were not fixed due to internal error:');
 
             foreach ($this->errorsManager->getErrors() as $i => $error) {
-                $stdErr->writeln(sprintf('%4d) %s', $i + 1, $error['filepath']));
+                $stdErr->writeln(sprintf("%4d) %s \r\n\t%s", $i + 1, $error['filepath'], $error['message']));
             }
         }
 

@@ -33,6 +33,7 @@ class FixerFileProcessedEvent extends Event
     const STATUS_FIXED = 4;
     const STATUS_EXCEPTION = 5;
     const STATUS_LINT = 6;
+    const STATUS_START = 7;
 
     /**
      * File statuses map.
@@ -47,12 +48,13 @@ class FixerFileProcessedEvent extends Event
         self::STATUS_FIXED => array('symbol' => 'F', 'description' => 'fixed'),
         self::STATUS_EXCEPTION => array('symbol' => 'E', 'description' => 'error'),
         self::STATUS_LINT => array('symbol' => 'E', 'description' => 'error'),
+        self::STATUS_START => array('symbol' => '', 'description' => ''),
     );
 
     /**
      * File info.
      *
-     * @var mixes
+     * @var mixed
      */
     private $fileInfo;
 
@@ -113,16 +115,13 @@ class FixerFileProcessedEvent extends Event
     public function setStatus($status, $fileInfo = null)
     {
         $this->status = $status;
-
-        if ( $status === self::STATUS_FIXED){
-            $this->fileInfo = $fileInfo;
-        }
+        $this->fileInfo = $fileInfo;
 
         return $this;
     }
 
     /**
-     * @return mixes
+     * @return mixed
      */
     public function getFileInfo()
     {
