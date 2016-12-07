@@ -295,7 +295,14 @@ class Fixer
         if ($this->eventDispatcher) {
             $this->eventDispatcher->dispatch(
                 FixerFileProcessedEvent::NAME,
-                FixerFileProcessedEvent::create()->setStatus($fixInfo ? FixerFileProcessedEvent::STATUS_FIXED : FixerFileProcessedEvent::STATUS_NO_CHANGES)
+                FixerFileProcessedEvent::create()->setStatus(
+
+                    $fixInfo ? FixerFileProcessedEvent::STATUS_FIXED : FixerFileProcessedEvent::STATUS_NO_CHANGES,
+
+                    $fixInfo ? array_merge(
+                        $fixInfo, ['filename' => $this->getFileRelativePathname($file)]
+                    ): null
+                )
             );
         }
 

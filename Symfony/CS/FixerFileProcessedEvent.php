@@ -50,6 +50,13 @@ class FixerFileProcessedEvent extends Event
     );
 
     /**
+     * File info.
+     *
+     * @var mixes
+     */
+    private $fileInfo;
+
+    /**
      * File status.
      *
      * @var int
@@ -103,10 +110,22 @@ class FixerFileProcessedEvent extends Event
      *
      * @return FixerFileProcessedEvent
      */
-    public function setStatus($status)
+    public function setStatus($status, $fileInfo = null)
     {
         $this->status = $status;
 
+        if ( $status === self::STATUS_FIXED){
+            $this->fileInfo = $fileInfo;
+        }
+
         return $this;
+    }
+
+    /**
+     * @return mixes
+     */
+    public function getFileInfo()
+    {
+        return $this->fileInfo;
     }
 }

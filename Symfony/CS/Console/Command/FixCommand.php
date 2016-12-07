@@ -12,6 +12,8 @@
 
 namespace Symfony\CS\Console\Command;
 
+use GitWrapper\GitWrapper;
+use PHPGit\Git;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Input\InputArgument;
@@ -22,6 +24,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Stopwatch\Stopwatch;
+use Symfony\CS\Commiter;
 use Symfony\CS\Config\Config;
 use Symfony\CS\ConfigInterface;
 use Symfony\CS\ConfigurationException\InvalidConfigurationException;
@@ -115,6 +118,8 @@ class FixCommand extends Command
                     new InputOption('fixers', '', InputOption::VALUE_REQUIRED, 'A list of fixers to run'),
                     new InputOption('diff', '', InputOption::VALUE_NONE, 'Also produce diff for each file'),
                     new InputOption('format', '', InputOption::VALUE_REQUIRED, 'To output results in other formats', 'txt'),
+                    new InputOption('git-commit', '', InputOption::VALUE_REQUIRED, 'commit the changes'),
+                    new InputOption('force-commit', '', InputOption::VALUE_NONE, 'no ask for commit'),
                 )
             )
             ->setDescription('Fixes a directory or a file')
@@ -405,10 +410,25 @@ EOF
             $this->eventDispatcher->addListener(FixerFileProcessedEvent::NAME, $fileProcessedEventListener);
         }
 
+        /** @var GitWrapper $git */
+        $git = null;
+        if ($repodir = $input->getOption('git-commit')){
+
+           /* $git = new Git();
+            $git->setRepository($repodir);*/
+
+            $git = new GitWrapper();
+    
+            $commiter = new Commiter($this->eventDispatcher, $git->workingCopy($repodir), $input->getOption('force-commit'), $input->getOption('dry-run'));
+        }
+
         $isDiff = $input->getOption('diff');
         $this->stopwatch->start('fixFiles');
         $changed = $this->fixer->fix($config, $input->getOption('dry-run'), $isDiff);
         $this->stopwatch->stop('fixFiles');
+
+
+
 
         if ($showProgress) {
             $this->fixer->setEventDispatcher(null);
@@ -425,6 +445,7 @@ EOF
             $stdErr->writeln('Legend: '.implode(', ', array_unique($legend)));
         }
 
+
         $i = 1;
 
         switch ($resolver->getFormat()) {
@@ -436,6 +457,7 @@ EOF
                 }
 
                 foreach ($changed as $file => $fixResult) {
+
                     $output->write(sprintf('%4d) %s', $i++, $file));
 
                     if ($fixerDetailLine) {
