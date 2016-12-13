@@ -23,13 +23,6 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 class Commiter
 {
     /**
-     * Differ instance.
-     *
-     * @var Differ
-     */
-    protected $diff;
-
-    /**
      * EventDispatcher instance.
      *
      * @var EventDispatcher|null
@@ -45,19 +38,11 @@ class Commiter
      * @var bool
      */
     private $force;
-    
-    /**
-     * @var bool
-     */
-    private $dryRun;
 
-    public function __construct(EventDispatcher $eventDispatcher, GitWorkingCopy $git, $force = false, $dryRun = false)
+    public function __construct(EventDispatcher $eventDispatcher, GitWorkingCopy $git, $dryRun = false)
     {
-        $this->diff = new Differ();
         $this->git = $git;
-        $this->force = $force;
-        $this->dryRun = $dryRun;
-
+        
         if ( false === $dryRun){
             $this->setEventDispatcher($eventDispatcher);
         }
@@ -81,7 +66,7 @@ class Commiter
             return false;
         }
 
-        $commitMessage = 'apply ' .str_replace('_', ' ', $event->getFileInfo()['appliedFixers']);
+        $commitMessage = 'apply ' .str_replace('_', ' ', $event->getFileInfo()['appliedFixer']);
         $file = $event->getFileInfo()['filename'];
         $content =$event->getFileInfo()['content'];
         file_put_contents($event->getFileInfo()['realpath'], $content);

@@ -223,17 +223,19 @@ class Fixer
                 if ($newest !== $new) {
                     $appliedFixers[] = $fixer->getName();
 
-                    $this->eventDispatcher->dispatch(
-                        FixerFileProcessedEvent::NAME,
-                        FixerFileProcessedEvent::create()->setStatus(FixerFileProcessedEvent::STATUS_APPLY,
-                            [
-                                'appliedFixers' => $fixer->getName(),
-                                'content' => $newest,
-                                'realpath' => $file->getRealPath(),
-                                'filename' => $this->getFileRelativePathname($file)
-                            ]
-                        )
-                    );
+                    if ($this->eventDispatcher) {
+                        $this->eventDispatcher->dispatch(
+                            FixerFileProcessedEvent::NAME,
+                            FixerFileProcessedEvent::create()->setStatus(FixerFileProcessedEvent::STATUS_APPLY,
+                                [
+                                    'appliedFixer' => $fixer->getName(),
+                                    'content' => $newest,
+                                    'realpath' => $file->getRealPath(),
+                                    'filename' => $this->getFileRelativePathname($file)
+                                ]
+                            )
+                        );
+                    }
                 }
                 $new = $newest;
             }
@@ -328,14 +330,7 @@ class Fixer
         if ($this->eventDispatcher) {
             $this->eventDispatcher->dispatch(
                 FixerFileProcessedEvent::NAME,
-                FixerFileProcessedEvent::create()->setStatus(
-
-                    $fixInfo ? FixerFileProcessedEvent::STATUS_FIXED : FixerFileProcessedEvent::STATUS_NO_CHANGES,
-
-                    $fixInfo ? array_merge(
-                        $fixInfo, ['filename' => $this->getFileRelativePathname($file)]
-                    ): null
-                )
+                FixerFileProcessedEvent::create()->setStatus($fixInfo ? FixerFileProcessedEvent::STATUS_FIXED : FixerFileProcessedEvent::STATUS_NO_CHANGES)
             );
         }
 
