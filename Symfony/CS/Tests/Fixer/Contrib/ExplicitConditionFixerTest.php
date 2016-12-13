@@ -58,10 +58,10 @@ class ExplicitConditionFixerTest extends AbstractFixerTestBase
     public function provideExamples()
     {
         return array(
-            array(
+            /*array( //TO-DO
                 '<?php $a = (true === isset($b) && true == count($c) && true == $d->c($f));',
                 '<?php $a = (isset($b) && count($c) && $d->c($f));'
-            ),
+            ),*/
             array(
                 '<?php if (true === $a instanceof a) { return; }',
                 '<?php if ($a instanceof a) { return; }',

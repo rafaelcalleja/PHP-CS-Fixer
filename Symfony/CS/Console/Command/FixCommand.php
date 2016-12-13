@@ -119,7 +119,6 @@ class FixCommand extends Command
                     new InputOption('diff', '', InputOption::VALUE_NONE, 'Also produce diff for each file'),
                     new InputOption('format', '', InputOption::VALUE_REQUIRED, 'To output results in other formats', 'txt'),
                     new InputOption('git-commit', '', InputOption::VALUE_REQUIRED, 'commit the changes'),
-                    new InputOption('force-commit', '', InputOption::VALUE_NONE, 'no ask for commit'),
                 )
             )
             ->setDescription('Fixes a directory or a file')
@@ -419,7 +418,7 @@ EOF
 
             $git = new GitWrapper();
     
-            $commiter = new Commiter($this->eventDispatcher, $git->workingCopy($repodir), $input->getOption('force-commit'), $input->getOption('dry-run'));
+            $commiter = new Commiter($this->eventDispatcher, $git->workingCopy($repodir), $input->getOption('dry-run'));
         }
 
         $isDiff = $input->getOption('diff');
