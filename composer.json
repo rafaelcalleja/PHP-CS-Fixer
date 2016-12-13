@@ -23,7 +23,6 @@
         "symfony/process": "^2.3 || ^3.0",
         "symfony/stopwatch": "^2.5 || ^3.0",
         "sebastian/diff": "^1.1",
-        "kzykhys/git": "dev-master",
         "cpliakas/git-wrapper": "^1.7"
     },
     "require-dev": {
