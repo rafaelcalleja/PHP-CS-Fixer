@@ -545,14 +545,10 @@ class ExplicitConditionFixer extends AbstractFixer
     private function fixTokens(Tokens $tokens)
     {
         $comparisons = $this->getReverseKindTypes($tokens,[T_IF, T_ELSEIF], 0, count($tokens) -1);
-        $otherComparisons = $this->getEqualsTypes($tokens,['='], 0, count($tokens) -1);
-
-        $comparisons = $comparisons + $otherComparisons;
-        sort($comparisons);
 
         $lastFixedIndex = count($tokens);
 
-        foreach (array_reverse($comparisons) as $index) {
+        foreach ($comparisons as $index) {
             if ($index >= $lastFixedIndex) {
                 continue;
             }
