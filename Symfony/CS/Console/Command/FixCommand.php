@@ -412,12 +412,7 @@ EOF
         /** @var GitWrapper $git */
         $git = null;
         if ($repodir = $input->getOption('git-commit')){
-
-           /* $git = new Git();
-            $git->setRepository($repodir);*/
-
             $git = new GitWrapper();
-    
             $commiter = new Commiter($this->eventDispatcher, $git->workingCopy($repodir), $input->getOption('dry-run'));
         }
 
