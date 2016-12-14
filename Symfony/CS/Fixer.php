@@ -205,17 +205,52 @@ class Fixer
         Tokens::clearCache();
 
         try {
+
+            if ($this->eventDispatcher) {
+                $this->eventDispatcher->dispatch(
+                    FixerFileProcessedEvent::NAME,
+                    FixerFileProcessedEvent::create()->setStatus(FixerFileProcessedEvent::STATUS_START, ['filename' => $this->getFileRelativePathname($file)])
+                );
+            }
+
             foreach ($fixers as $fixer) {
                 if (!$fixer->supports($file)) {
                     continue;
                 }
 
                 $newest = $fixer->fix($file, $new);
+
                 if ($newest !== $new) {
                     $appliedFixers[] = $fixer->getName();
+
+                    if ($this->eventDispatcher) {
+                        $this->eventDispatcher->dispatch(
+                            FixerFileProcessedEvent::NAME,
+                            FixerFileProcessedEvent::create()->setStatus(FixerFileProcessedEvent::STATUS_APPLY,
+                                [
+                                    'appliedFixer' => $fixer->getName(),
+                                    'content' => $newest,
+                                    'realpath' => $file->getRealPath(),
+                                    'filename' => $this->getFileRelativePathname($file)
+                                ]
+                            )
+                        );
+                    }
                 }
                 $new = $newest;
             }
+        } catch (\RuntimeException $e) {
+            if ($this->eventDispatcher) {
+                $this->eventDispatcher->dispatch(
+                    FixerFileProcessedEvent::NAME,
+                    FixerFileProcessedEvent::create()->setStatus(FixerFileProcessedEvent::STATUS_EXCEPTION)
+                );
+            }
+            if ($this->errorsManager) {
+                $this->errorsManager->report(ErrorsManager::ERROR_TYPE_EXCEPTION, $this->getFileRelativePathname($file), $e->getMessage());
+            }
+
+            return;
         } catch (\ParseError $e) {
             if ($this->eventDispatcher) {
                 $this->eventDispatcher->dispatch(
@@ -249,12 +284,12 @@ class Fixer
                     FixerFileProcessedEvent::create()->setStatus(FixerFileProcessedEvent::STATUS_EXCEPTION)
                 );
             }
-
             if ($this->errorsManager) {
                 $this->errorsManager->report(ErrorsManager::ERROR_TYPE_EXCEPTION, $this->getFileRelativePathname($file), $e->__toString());
             }
 
             return;
+
         }
 
         $fixInfo = null;
